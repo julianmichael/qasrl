@@ -1,5 +1,6 @@
 package qasrl.util
 
+import cats.Order
 import cats.data.NonEmptyList
 import cats.data.Ior
 
@@ -25,6 +26,11 @@ object implicits {
         case (Ior.Right(cs), Right(c)) => Ior.Right(c :: cs)
         case (Ior.Both(bs, cs), Right(c)) => Ior.Both(bs, c :: cs)
       }
+    }
+
+    // taken from latest cats; holdover until version upgrade
+    def sorted[AA >: A](implicit AA: Order[AA]): NonEmptyList[AA] = {
+      NonEmptyList.fromListUnsafe(as.toList.sorted(AA.toOrdering))
     }
   }
 }

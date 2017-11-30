@@ -22,9 +22,7 @@ class Autocomplete(questionProcessor: QuestionProcessor) {
     goodStates: NonEmptyList[ValidState]
   ): Ior[NonEmptyList[Suggestion], NonEmptyList[QuestionProcessor.CompleteState]] =
     goodStates.partition(ValidState.eitherIso.get).leftMap(ipss =>
-      NonEmptyList.fromList(
-        ipss.map(createSuggestion).distinct.toList.sorted(implicitly[Order[Suggestion]].toOrdering)
-      ).get
+      ipss.map(createSuggestion).distinct.sorted
     )
 
   def apply(
@@ -75,7 +73,7 @@ class Autocomplete(questionProcessor: QuestionProcessor) {
         partitionResults(goodStates).toEither.fold(
           suggestions => Autocomplete.incomplete(
             NonEmptyList.fromList(questionSuggestions.toList).fold(suggestions)(sugg =>
-              NonEmptyList.fromList((sugg ++ suggestions.toList).toList.sorted(implicitly[Order[Suggestion]].toOrdering)).get.distinct
+              (sugg ++ suggestions.toList).distinct.sorted
             ),
             None
           ),
