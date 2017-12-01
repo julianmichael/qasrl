@@ -28,7 +28,7 @@ class QuestionProcessor(stateMachine: TemplateStateMachine) {
         ) if (prepOpt.nonEmpty == frame.args.get(Obj2).exists(_.isPrep)) &&
             (!Set("who", "what").map(_.lowerCase).contains(whWord) || answerSlotOpt.nonEmpty) =>
           List(CompleteState(textSoFarReversed.reverse.mkString, frame, answerSlotOpt.getOrElse(Adv(whWord))))
-        case _ => ??? // should not happen
+        case _ => Nil
       }
     case TemplateStateMachine.TemplateProgress(transitions) => transitions.toList.flatMap {
       case (token, nextStateProcessor) => nextStateProcessor.run(frameState) match {
