@@ -50,7 +50,7 @@ import monocle.macros._
   private[this] def modForm(form: VerbForm) =
     modTop(w => getForms(w.lowerCase).fold(w)(_(form)))
 
-  private[this] def getVerbStack = {
+  def getVerbStack = {
     def pass = State.pure[NonEmptyList[String], Unit](())
 
     val stackState = for {
@@ -63,11 +63,11 @@ import monocle.macros._
         case Modal(m) => pushAll(modalTokens(m))
         case PastTense => if(isNegated) {
           if(postAspectStack.size == 1) push("didn't")
-          else modTop(_ + "n't")
+          else (modForm(Past) >> modTop(_ + "n't"))
         } else modForm(Past)
         case PresentTense => if(isNegated) {
           if(postAspectStack.size == 1) push("doesn't")
-          else modTop(_ + "n't")
+          else (modForm(PresentSingular3rd) >> modTop(_ + "n't"))
         } else modForm(PresentSingular3rd)
       }
     } yield ()
@@ -75,14 +75,13 @@ import monocle.macros._
     stackState.runS(NonEmptyList.of(verbInflectedForms.stem)).value
   }
 
-  private[this] def splitIfNecessary(verbStack: NonEmptyList[String]) = {
+  def splitVerbStackIfNecessary(verbStack: NonEmptyList[String]) = {
     if(verbStack.size > 1) {
       verbStack
-    } else {
-      verbInflectedForms.getForm(verbStack.head.lowerCase) match {
-        case Some(form) => (modForm(Stem) >> push("do") >> modForm(form)).runS(verbStack).value
-        case None => "does" :: verbStack // shouldn't happen, but whatever
-      }
+    } else tense match {
+      case Modal(_) => verbStack // should never happen, since a modal adds another token
+      case PastTense => (modForm(Stem) >> push("did")).runS(verbStack).value
+      case PresentTense => (modForm(Stem) >> push("does")).runS(verbStack).value
     }
   }
 
@@ -119,7 +118,7 @@ import monocle.macros._
   private[this] def renderAuxThroughVerb(includeSubject: Boolean) = {
     val verbStack = getVerbStack
     if(includeSubject) {
-      val splitVerbStack = splitIfNecessary(verbStack)
+      val splitVerbStack = splitVerbStackIfNecessary(verbStack)
       val (aux, verb) = (splitVerbStack.head, splitVerbStack.tail)
       append(aux) >> renderNecessaryNoun(Subj) >> appendAll(verb)
     } else appendAll(verbStack)

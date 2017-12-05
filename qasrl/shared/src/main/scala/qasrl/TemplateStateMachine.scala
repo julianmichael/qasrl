@@ -265,8 +265,8 @@ class TemplateStateMachine(
   )
 
   val doPrep = TemplateProgress(
-    NonEmptyList.of(" do", " doing").map(doVerb =>
-      (doVerb) -> (
+    NonEmptyList.of("do", "doing").map(doVerb =>
+      (" " + doVerb) -> (
         for {
           fs <- get
           _ <- lift(fs.preposition.ifEmpty(())) // must have no preposition already, though that should always be true
