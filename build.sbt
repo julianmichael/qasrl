@@ -2,7 +2,7 @@ val scalaJSReactVersion = "1.1.0"
 val monocleVersion = "1.4.0-M2"
 
 lazy val root = project.in(file("."))
-  .aggregate(qasrlJVM, qasrlJS)
+  .aggregate(qasrlJVM, qasrlJS, crowdJVM, crowdJS)
   .settings(
   publish := {},
   publishLocal := {})
@@ -21,10 +21,7 @@ lazy val commonSettings = Seq(
   libraryDependencies += "com.github.julien-truffaut" %%% "monocle-macro" % monocleVersion
 )
 
-lazy val commonJVMSettings = Seq(
-  // libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0",
-  // libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier "models" // for automatically downloading pos-tagging model
-)
+lazy val commonJVMSettings = Seq()
 
 lazy val commonJSSettings = Seq(
   relativeSourceMaps := true,
@@ -33,7 +30,7 @@ lazy val commonJSSettings = Seq(
   persistLauncher in Test := false,
   skip in packageJSDependencies := false)
 
-lazy val qasrl = crossProject
+lazy val qasrl = crossProject.in(file("qasrl"))
   .settings(commonSettings).settings(
   name := "qasrl",
   version := "0.1-SNAPSHOT"
@@ -46,20 +43,21 @@ lazy val qasrl = crossProject
 lazy val qasrlJS = qasrl.js
 lazy val qasrlJVM = qasrl.jvm
 
-lazy val crowd = crossProject
+lazy val crowd = crossProject.in(file("qasrl-crowd"))
   .settings(commonSettings).settings(
   name := "qasrl-crowd",
   version := "0.1-SNAPSHOT",
   libraryDependencies += "com.github.julianmichael" %%% "spacro" % "0.1-SNAPSHOT",
   libraryDependencies += "com.lihaoyi" %%% "upickle" % "0.4.3"
 ).jvmSettings(commonJVMSettings).jvmSettings(
-  fork in console := true,
   libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-actor" % "2.4.8",
     // "com.typesafe.akka" %% "akka-http-experimental" % "2.4.9",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
     // java deps:
-    "org.slf4j" % "slf4j-api" % "1.7.21" // decided to match scala-logging transitive dep
+    "org.slf4j" % "slf4j-api" % "1.7.21", // decided to match scala-logging transitive dep
+    "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0",
+    "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier "models" // for automatically downloading pos-tagging model
   )
 ).jsSettings(commonJSSettings).jsSettings(
   libraryDependencies ++= Seq(
