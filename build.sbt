@@ -2,7 +2,7 @@ val scalaJSReactVersion = "1.1.0"
 val monocleVersion = "1.4.0-M2"
 
 lazy val root = project.in(file("."))
-  .aggregate(qasrlJVM, qasrlJS, crowdJVM, crowdJS)
+  .aggregate(qasrlJVM, qasrlJS, crowdJVM, crowdJS, exampleJVM, exampleJS)
   .settings(
   publish := {},
   publishLocal := {})
@@ -52,7 +52,6 @@ lazy val crowd = crossProject.in(file("qasrl-crowd"))
 ).jvmSettings(commonJVMSettings).jvmSettings(
   libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-actor" % "2.4.8",
-    // "com.typesafe.akka" %% "akka-http-experimental" % "2.4.9",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
     // java deps:
     "org.slf4j" % "slf4j-api" % "1.7.21", // decided to match scala-logging transitive dep
@@ -95,36 +94,17 @@ lazy val crowd = crossProject.in(file("qasrl-crowd"))
 lazy val crowdJS = crowd.js.dependsOn(qasrlJS)
 lazy val crowdJVM = crowd.jvm.dependsOn(qasrlJVM)
 
-// lazy val exampleProjectSettings = commonSettings ++ Seq(
-//   libraryDependencies += "com.github.uwnlp" %%% "qamr-example" % "0.1-SNAPSHOT",
-//   libraryDependencies += "com.github.uwnlp" %%% "qamr-analysis" % "0.1-SNAPSHOT"
-// )
+lazy val example = crossProject.in(file("qasrl-crowd-example"))
+  .settings(commonSettings).settings(
+  name := "qasrl-crowd-example",
+  version := "0.1-SNAPSHOT"
+).jvmSettings(commonJVMSettings).jvmSettings(
+  libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
+).jsSettings(commonJSSettings)
 
-// lazy val exampleProjectJVMSettings = commonJVMSettings ++ Seq(
-//   libraryDependencies ++= Seq(
-//     "com.lihaoyi" %% "scalatags" % "0.6.5",
-//     "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
-//     // java deps:
-//     "org.slf4j" % "slf4j-api" % "1.7.21", // decided to match scala-logging transitive dep
-//     "ch.qos.logback" % "logback-classic" % "1.2.3",
-//     "log4j" % "log4j" % "1.2.17", // runtime error if not included?
-//     "ca.juliusdavies" % "not-yet-commons-ssl" % "0.3.11",  // runtime error if not included?
-//     "xerces" % "xercesImpl" % "2.9.1" // runtime error if not included?
-//   )
-// )
-
-// lazy val exampleProjectJSSettings = commonJSSettings
-
-// lazy val emnlp2017 = crossProject.in(file("example/emnlp2017"))
-//   .settings(name := "turksem-emnlp2017", version := "0.1-SNAPSHOT")
-//   .settings(exampleProjectSettings)
-//   .jvmSettings(exampleProjectJVMSettings)
-//   .jvmSettings(libraryDependencies += "io.argonaut" %% "argonaut" % "6.1")
-//   .jsSettings(exampleProjectJSSettings)
-
-// lazy val emnlp2017JS = emnlp2017.js.dependsOn(turksemJS)
-// lazy val emnlp2017JVM = emnlp2017.jvm.dependsOn(turksemJVM).settings(
-//   (resources in Compile) += (fastOptJS in (emnlp2017JS, Compile)).value.data,
-//   (resources in Compile) += (packageScalaJSLauncher in (emnlp2017JS, Compile)).value.data,
-//   (resources in Compile) += (packageJSDependencies in (emnlp2017JS, Compile)).value
-// )
+lazy val exampleJS = example.js.dependsOn(qasrlJS, crowdJS)
+lazy val exampleJVM = example.jvm.dependsOn(qasrlJVM, crowdJVM).settings(
+  (resources in Compile) += (fastOptJS in (exampleJS, Compile)).value.data,
+  (resources in Compile) += (packageScalaJSLauncher in (exampleJS, Compile)).value.data,
+  (resources in Compile) += (packageJSDependencies in (exampleJS, Compile)).value
+)
