@@ -4,8 +4,7 @@ import cats._
 import cats.implicits._
 
 import qasrl.crowd._
-// import turksem.qasrl.QALabelMapper
-// import turksem.util._
+import qasrl.labeling._
 
 import spacro._
 import spacro.tasks._
@@ -122,12 +121,13 @@ class AnnotationSetup(
     generationCoverageDisqualTypeLabel = None,
     validationAgreementDisqualTypeLabel = None)
 
-  def saveAnnotationData(
+  def saveAnnotationData[A](
     filename: String,
     ids: Vector[SentenceId],
     genInfos: List[HITInfo[QASRLGenerationPrompt[SentenceId], List[VerbQA]]],
     valInfos: List[HITInfo[QASRLValidationPrompt[SentenceId], List[QASRLValidationAnswer]]],
-    questionLabelGetter: DataIO.QuestionLabelGetter
+    labelMapper: QuestionLabelMapper[String, A],
+    labelRenderer: A => String
   ) = {
     saveOutputFile(
       s"$filename.tsv",
@@ -136,7 +136,8 @@ class AnnotationSetup(
         SentenceId.toString,
         genInfos,
         valInfos,
-        questionLabelGetter)
+        labelMapper,
+        labelRenderer)
     )
   }
 

@@ -32,5 +32,27 @@ object implicits {
     def sorted[AA >: A](implicit AA: Order[AA]): NonEmptyList[AA] = {
       NonEmptyList.fromListUnsafe(as.toList.sorted(AA.toOrdering))
     }
+
+    // taken from latest cats; holdover until version upgrade
+    def init: List[A] = as.tail match {
+      case Nil => Nil
+      case t => as.head :: t.init
+    }
+
+    // taken from latest cats; holdover until version upgrade
+    def last: A = as.tail.lastOption match {
+      case None => as.head
+      case Some(a) => a
+    }
+
+  }
+
+  implicit class RichNonEmptyListCompanion(val nel: NonEmptyList.type) extends AnyVal {
+    // taken from latest cats; holdover until version upgrade
+    def ofInitLast[A](init: List[A], last: A): NonEmptyList[A] =
+      init match {
+        case Nil => NonEmptyList(last, Nil)
+        case h :: t => NonEmptyList(h, t :+ last)
+      }
   }
 }

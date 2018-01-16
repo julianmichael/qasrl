@@ -3,6 +3,7 @@ package qasrl.crowd
 import qasrl.Frame
 import qasrl.QuestionProcessor
 import qasrl.TemplateStateMachine
+import qasrl.labeling.QuestionLabelMapper
 
 import qasrl.crowd.util.CategoricalDistribution
 import qasrl.crowd.util.implicits._
@@ -25,14 +26,13 @@ import com.typesafe.scalalogging.LazyLogging
 
 object DataIO extends LazyLogging {
 
-  type QuestionLabelGetter = (Vector[String], InflectedForms, List[String]) => List[Option[LowerCaseString]]
-
-  def makeQAPairTSV[SID : HasTokens](
+  def makeQAPairTSV[SID : HasTokens, QuestionLabel](
     ids: List[SID],
     writeId: SID => String, // serialize sentence ID for distribution in data file
     genInfos: List[HITInfo[QASRLGenerationPrompt[SID], List[VerbQA]]],
     valInfos: List[HITInfo[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]]],
-    getQuestionLabels: QuestionLabelGetter)(
+    mapLabels: QuestionLabelMapper[String, QuestionLabel],
+    renderLabel: QuestionLabel => String)(
     implicit inflections: Inflections
   ): String = {
     val genInfosBySentenceId = genInfos.groupBy(_.hit.prompt.id).withDefaultValue(Nil)
@@ -54,7 +54,7 @@ object DataIO extends LazyLogging {
         // only use verbs where we have inflected forms (should always be the case though)
         inflForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase).toList
         verbQAsIndexed = genAssignment.response.zipWithIndex.filter(_._1.verbIndex == verbIndex)
-        labels = getQuestionLabels(sentenceTokens, inflForms, verbQAsIndexed.map(_._1.question))
+        labels = mapLabels(sentenceTokens, inflForms, verbQAsIndexed.map(_._1.question))
         ((wqa, qaIndex), Some(qLabel)) <- verbQAsIndexed.zip(labels)
       } yield {
         // pairs of (validation worker ID, validation answer)
@@ -69,7 +69,7 @@ object DataIO extends LazyLogging {
           shouldIncludeSentence = true
           sentenceSB.append("\t")
           sentenceSB.append(wqa.verbIndex.toString + "\t")
-          sentenceSB.append(qLabel.toString + "\t") // question string written by worker
+          sentenceSB.append(renderLabel(qLabel) + "\t")
           sentenceSB.append(
             (wqa.answers :: valAnswerSpans).map { spans =>
               spans
