@@ -12,27 +12,29 @@ import cats.data.NonEmptyList
 import nlpdata.datasets.wiktionary.InflectedForms
 import nlpdata.util.LowerCaseStrings._
 
-// accordance with original QA-SRL format
-case class SlotBasedLabel(
+// for accordance with original QA-SRL format
+case class SlotBasedLabel[A](
   wh: LowerCaseString,
   aux: Option[LowerCaseString],
   subj: Option[LowerCaseString],
-  verb: NonEmptyList[LowerCaseString],
+  verbPrefix: List[LowerCaseString],
+  verb: A,
   obj: Option[LowerCaseString],
   prep: Option[LowerCaseString],
   obj2: Option[LowerCaseString]) {
 
-  def slotStrings = List(
+  def slotStrings(renderVerb: A => LowerCaseString) = List(
     wh,
     aux.getOrElse("_".lowerCase),
     subj.getOrElse("_".lowerCase),
-    verb.toList.mkString(" ").lowerCase,
+    (verbPrefix.mkString(" ") + " " + renderVerb(verb).toString).lowerCase,
     obj.getOrElse("_".lowerCase),
     prep.getOrElse("_".lowerCase),
-    obj2.getOrElse("_".lowerCase))
+    obj2.getOrElse("_".lowerCase)
+  )
 
-  def renderWithSeparator(sep: String) = slotStrings.mkString(sep)
-
+  def renderWithSeparator(renderVerb: A => LowerCaseString, sep: String) =
+    slotStrings(renderVerb).mkString(sep)
 }
 
 object SlotBasedLabel {
@@ -95,6 +97,8 @@ object SlotBasedLabel {
                 case None => None -> verbStack
                 case Some(tail) => Some(verbStack.head) -> tail
               }
+              val verbPrefix = verbTokens.init
+              val verb = verbTokens.last
 
               val obj = {
                 if(answerSlot == Obj) None
@@ -126,23 +130,35 @@ object SlotBasedLabel {
                   }
                 }
               }
-              SlotBasedLabel(wh, aux, subj, verbTokens, obj, prep, obj2)
+              SlotBasedLabel(wh, aux, subj, verbPrefix, verb, obj, prep, obj2)
           }.toSet.headOption
         }
         resOpt.map(question -> _)
-      }.toMap: Map[String, SlotBasedLabel]
+      }.toMap: Map[String, SlotBasedLabel[LowerCaseString]]
     }
   )
 
-  val getVerbAbstractedSlotsForQuestion = getSlotsForQuestion >>> QuestionLabelMapper.liftOptionalWithContext(
-    (_: Vector[String],
+  val getVerbTenseAbstractedSlotsForQuestion = (
+    Arrow[QuestionLabelMapper].id &&& getSlotsForQuestion
+  ) >>> QuestionLabelMapper.liftOptionalWithContext(
+    (sentenceTokens: Vector[String],
      verbInflectedForms: InflectedForms,
-     rawSlots: SlotBasedLabel
+     pair: (String, SlotBasedLabel[LowerCaseString])
     ) => {
-      verbInflectedForms.getForm(rawSlots.verb.last).map(mainVerbForm =>
-        rawSlots.copy(verb = NonEmptyList.ofInitLast(rawSlots.verb.init, mainVerbForm.toString.lowerCase))
-      )
+      val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms)
+      val template = new QuestionProcessor(stateMachine)
+      val (question, rawSlots) = pair
+      val frameWithAnswerSlotOpt = template.processStringFully(question) match {
+        case Left(QuestionProcessor.AggregatedInvalidState(_, _)) => None
+        case Right(goodStates) => goodStates.toList.collect {
+          case QuestionProcessor.CompleteState(_, frame, answerSlot) => frame -> answerSlot
+        }.headOption
+      }
+      frameWithAnswerSlotOpt.map {
+        case (firstFrame, answerSlot) => rawSlots.copy(
+          verb = firstFrame.getVerbConjugation(firstFrame.args.get(Subj).isEmpty || answerSlot != Subj)
+        )
+      }
     }
   )
-
 }

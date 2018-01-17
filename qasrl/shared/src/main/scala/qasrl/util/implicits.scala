@@ -1,6 +1,7 @@
 package qasrl.util
 
 import cats.Order
+import cats.arrow.Arrow
 import cats.data.NonEmptyList
 import cats.data.Ior
 
@@ -54,5 +55,12 @@ object implicits {
         case Nil => NonEmptyList(last, Nil)
         case h :: t => NonEmptyList(h, t :+ last)
       }
+  }
+
+  // taken from latest cats; holdover until version upgrade
+  implicit class RichArrow[F[_, _], A, B](val f: F[A, B])(implicit F: Arrow[F]) {
+    def &&&[C](g: F[A, C]): F[A, (B, C)] = {
+      F.andThen(F.lift((x: A) => (x, x)), F.split(f, g))
+    }
   }
 }

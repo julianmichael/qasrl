@@ -50,14 +50,28 @@ import monocle.macros._
   private[this] def modForm(form: VerbForm) =
     modTop(w => getForms(w.lowerCase).fold(w)(_(form)))
 
+  // should always agree with what's produced on the verb stack.
+  // ideally they would share code somehow but this is easiest for now and probably works.
+  def getVerbConjugation(subjectPresent: Boolean): VerbForm = {
+    if(isPassive) PastParticiple
+    else if(isProgressive) PresentParticiple
+    else if(isPerfect) PastParticiple
+    else tense match {
+      case Modal(_) => Stem
+      case _ if(isNegated || subjectPresent) => Stem
+      case PastTense => Past
+      case PresentTense => PresentSingular3rd
+    }
+  }
+
   def getVerbStack = {
     def pass = State.pure[NonEmptyList[String], Unit](())
 
     val stackState = for {
       // start with verb stem
       _ <- (if(isPassive) modForm(PastParticiple) >> push("be") else pass)
-      _ <- (if(isPerfect) modForm(PastParticiple) >> push("have") else pass)
       _ <- (if(isProgressive) modForm(PresentParticiple) >> push("be") else pass)
+      _ <- (if(isPerfect) modForm(PastParticiple) >> push("have") else pass)
       postAspectStack <- State.get[NonEmptyList[String]]
       _ <- tense match {
         case Modal(m) => pushAll(modalTokens(m))
