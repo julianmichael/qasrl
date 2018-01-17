@@ -17,10 +17,10 @@ echo "Publishing nlpdata locally..."
 pushd lib/nlpdata
 sbt publishLocal
 popd
-# echo "Publishing spacro locally..."
-# pushd lib/spacro
-# sbt publishLocal
-# popd
+echo "Publishing spacro locally..."
+pushd lib/spacro
+sbt publishLocal
+popd
 
 # if [ ! -e "datasets/ptb3/" ]
 # then
