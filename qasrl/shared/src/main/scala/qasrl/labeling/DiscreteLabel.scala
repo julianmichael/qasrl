@@ -25,6 +25,24 @@ case class NounRole(override val label: LowerCaseString, isAnimate: Boolean) ext
 case class AdvRole(override val label: LowerCaseString) extends DiscreteLabel
 
 object DiscreteLabel {
+
+  def fromRenderedString(s: LowerCaseString): Either[String, DiscreteLabel] = {
+    if(advDiscreteLabels.contains(s)) Right(AdvRole(s))
+    else if(!s.contains("/".lowerCase)) Left(s"Invalid adverbial label: $s")
+    else {
+      val getField = s.split("/").lift
+      for {
+        label <- getField(0).toRight(s"Could not read noun label before slash: $s")
+        animacyMarker <- getField(1).toRight(s"Could not read animacy marker after slash: $s")
+        animacy <- animacyMarker match {
+          case "+" => Right(true)
+          case "-" => Right(false)
+          case x => Left(s"Invalid animacy marker (must be + or -): $animacyMarker")
+        }
+      } yield NounRole(label.lowerCase, animacy)
+    }
+  }
+
   val coreArgDiscreteLabels = Set(
     "subj-transitive", "subj-intransitive", "obj", "obj-dative"
   ).map(_.lowerCase)
