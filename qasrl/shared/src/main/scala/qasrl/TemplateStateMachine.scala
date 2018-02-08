@@ -101,8 +101,6 @@ class TemplateStateMachine(
     .filter(_.forall(isPreposition))
     .map(_.mkString(" ").lowerCase)
 
-  implicit val lcsOrder = cats.Order.by[LowerCaseString, String](_.toString)
-
   val allChosenPrepositions: Set[LowerCaseString] = (
     newPrepositions.iterator ++
       prepositionBigrams ++
