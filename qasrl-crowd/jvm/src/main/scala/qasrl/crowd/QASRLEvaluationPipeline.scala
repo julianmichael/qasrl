@@ -150,7 +150,9 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     keywords = "language,english,question answering",
     qualRequirements = Array[QualificationRequirement](
       approvalRateRequirement, localeRequirement, valAgreementRequirement
-    ))
+    ),
+    autoApprovalDelay: Long = 2592000L // 30 days
+  )
 
   lazy val valAjaxService = new Service[QASRLValidationAjaxRequest[SID]] {
     override def processRequest(request: QASRLValidationAjaxRequest[SID]) = request match {
