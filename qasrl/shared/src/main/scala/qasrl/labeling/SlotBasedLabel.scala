@@ -5,12 +5,17 @@ import qasrl.util._
 import qasrl.util.implicits._
 
 import cats.Id
-import cats.implicits._
+import cats.Functor
 import cats.arrow.Arrow
 import cats.data.NonEmptyList
+import cats.implicits._
 
 import nlpdata.datasets.wiktionary.InflectedForms
+import nlpdata.datasets.wiktionary.VerbForm
 import nlpdata.util.LowerCaseStrings._
+import nlpdata.util.Text
+
+import scala.util.Try
 
 // for accordance with original QA-SRL format
 case class SlotBasedLabel[A](
@@ -27,7 +32,7 @@ case class SlotBasedLabel[A](
     wh,
     aux.getOrElse("_".lowerCase),
     subj.getOrElse("_".lowerCase),
-    (verbPrefix.mkString(" ") + " " + renderVerb(verb).toString).lowerCase,
+    (verbPrefix ++ List(renderVerb(verb))).mkString(" ").lowerCase,
     obj.getOrElse("_".lowerCase),
     prep.getOrElse("_".lowerCase),
     obj2.getOrElse("_".lowerCase)
@@ -35,9 +40,42 @@ case class SlotBasedLabel[A](
 
   def renderWithSeparator(renderVerb: A => LowerCaseString, sep: String) =
     slotStrings(renderVerb).mkString(sep)
+
+  private[this] def slotTokens(renderVerb: A => LowerCaseString) = List(
+    List(wh), aux.toList, subj.toList,
+    verbPrefix, List(renderVerb(verb)),
+    obj.toList, prep.toList, obj2.toList
+  ).flatten
+  def renderQuestionString(renderVerb: A => LowerCaseString): String =
+    Text.render(slotTokens(renderVerb).map(_.toString)).capitalize + "?"
+
 }
 
 object SlotBasedLabel {
+
+  implicit val slotBasedLabelFunctor: Functor[SlotBasedLabel] = new Functor[SlotBasedLabel] {
+    override def map[A, B](fa: SlotBasedLabel[A])(f: A => B): SlotBasedLabel[B] =
+      fa.copy(verb = f(fa.verb))
+  }
+
+  def fromRenderedString[A](readVerb: LowerCaseString => A, sep: String)(str: String) = Try {
+    val fields = str.split(sep)
+    def readField(i: Int) = if(fields(i) == "_") None else Some(fields(i).lowerCase)
+    val (verbPrefix, verb) = {
+      val verbWords = fields(3).split(" ").toList.map(_.lowerCase)
+      (verbWords.init, readVerb(verbWords.last))
+    }
+    SlotBasedLabel(
+      wh = readField(0).get,
+      aux = readField(1),
+      subj = readField(2),
+      verbPrefix = verbPrefix,
+      verb = verb,
+      obj = readField(4),
+      prep = readField(5),
+      obj2 = readField(6)
+    )
+  }
 
   val mainAuxVerbs = {
     val negContractibleAuxes = Set(
@@ -136,6 +174,13 @@ object SlotBasedLabel {
         resOpt.map(question -> _)
       }.toMap: Map[String, SlotBasedLabel[LowerCaseString]]
     }
+  )
+
+  val instantiateVerbForTenseSlots = QuestionLabelMapper.liftWithContext(
+    (_: Vector[String],
+     verbInflectedForms: InflectedForms,
+     slots: SlotBasedLabel[VerbForm]
+    ) => slots.map(verbInflectedForms)
   )
 
   val getVerbTenseAbstractedSlotsForQuestion = (

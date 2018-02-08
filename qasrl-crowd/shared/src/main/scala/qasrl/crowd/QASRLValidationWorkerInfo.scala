@@ -4,11 +4,6 @@ import qasrl.crowd.util.implicits._
 
 import cats.implicits._
 
-case class QASRLValidationWorkerInfoSummary(
-  proportionInvalid: Double,
-  numAssignmentsCompleted: Int,
-  agreement: Double)
-
 case class QASRLValidationResponseComparison(
   thisResponse: QASRLValidationAnswer,
   thatResponse: QASRLValidationAnswer,

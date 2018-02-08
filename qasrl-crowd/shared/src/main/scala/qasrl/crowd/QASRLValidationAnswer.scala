@@ -30,6 +30,17 @@ sealed trait QASRLValidationAnswer {
     case InvalidQuestion => true
     case Answer(indices) => indices.nonEmpty
   }
+
+  def agreesWith(that: QASRLValidationAnswer) = (this, that) match {
+    case (InvalidQuestion, InvalidQuestion) => true
+    case (Answer(spans1), Answer(spans2)) =>
+      spans1.exists(span1 =>
+        spans2.exists(span2 =>
+          (span1.begin to span1.end).toSet.intersect((span2.begin to span2.end).toSet).nonEmpty
+        )
+      )
+    case _ => false
+  }
 }
 case object InvalidQuestion extends QASRLValidationAnswer
 @Lenses case class Answer(spans: List[Span]) extends QASRLValidationAnswer

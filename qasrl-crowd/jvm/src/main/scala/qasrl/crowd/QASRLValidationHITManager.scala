@@ -2,10 +2,6 @@ package qasrl.crowd
 
 import qasrl.crowd.util.dollarsToCents
 
-// import qamr.Pring
-// import qamr.SaveData
-// import qamr.AnnotationDataService
-
 import spacro._
 import spacro.tasks._
 import spacro.util._
@@ -32,7 +28,6 @@ class QASRLValidationHITManager[SID : Reader : Writer](
   helper: HITManager.Helper[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]],
   valDisqualificationTypeId: String,
   accuracyStatsActor: ActorRef,
-  // sentenceTrackingActor: ActorRef,
   numAssignmentsForPrompt: QASRLValidationPrompt[SID] => Int,
   initNumHITsToKeepActive: Int)(
   implicit annotationDataService: AnnotationDataService,
