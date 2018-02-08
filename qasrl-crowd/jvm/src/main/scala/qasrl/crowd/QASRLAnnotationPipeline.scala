@@ -236,7 +236,9 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
     keywords = "language,english,question answering",
     qualRequirements = Array[QualificationRequirement](
       approvalRateRequirement, localeRequirement, genAccuracyRequirement, genCoverageRequirement
-    ))
+    ),
+    autoApprovalDelay = 2592000L, // 30 days
+    assignmentDuration = 600L)
 
   lazy val genAjaxService = new Service[QASRLGenerationAjaxRequest[SID]] {
     override def processRequest(request: QASRLGenerationAjaxRequest[SID]) = request match {
@@ -279,7 +281,9 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
     keywords = "language,english,question answering",
     qualRequirements = Array[QualificationRequirement](
       approvalRateRequirement, localeRequirement, valAgreementRequirement
-    ))
+    ),
+    autoApprovalDelay = 2592000L, // 30 days
+    assignmentDuration = 600L)
 
   lazy val valAjaxService = new Service[QASRLValidationAjaxRequest[SID]] {
     override def processRequest(request: QASRLValidationAjaxRequest[SID]) = request match {
