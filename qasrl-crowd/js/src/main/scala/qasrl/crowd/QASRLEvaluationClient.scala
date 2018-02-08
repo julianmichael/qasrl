@@ -185,6 +185,7 @@ class QASRLEvaluationClient[SID : Writer : Reader](
               SpanHighlighting(
                 SpanHighlightingProps(
                   isEnabled = !isNotAssigned && answers(curQuestion).isAnswer,
+                  enableSpanOverlap = true,
                   update = updateCurrentAnswers, render = {
                     case (hs @ SpanHighlightingState(spans, status), SpanHighlightingContext(_, hover, touch, cancelHighlight)) =>
                       val curVerbIndex = prompt.qaPairs(curQuestion).verbIndex
@@ -265,8 +266,7 @@ class QASRLEvaluationClient[SID : Writer : Reader](
                               styleForIndex = i => TagMod(Styles.specialWord, Styles.niceBlue).when(i == curVerbIndex),
                               highlightedSpans = (
                                 inProgressAnswerOpt.map(_ -> (^.backgroundColor := "#FF8000")) ::
-                                (curAnswers.map(_ -> (^.backgroundColor := "#FFFF00")) ++
-                                otherAnswers.map(_ -> (^.backgroundColor := "#DDDDDD"))).map(Some(_))).flatten,
+                                curAnswers.map(_ -> (^.backgroundColor := "#FFFF00")).map(Some(_))).flatten,
                               hover = hover(state.curQuestion),
                               touch = touch(state.curQuestion),
                               render = (elements =>
