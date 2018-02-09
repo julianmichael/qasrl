@@ -299,121 +299,88 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
       .map(renderValidation)
       .foreach(println)
 
-  // case class StatSummary(
-  //   workerId: String,
-  //   numVerbs: Option[Int],
-  //   numQs: Option[Int],
-  //   accuracy: Option[Double],
-  //   numAs: Option[Int],
-  //   numInvalidAnswers: Option[Int],
-  //   pctBad: Option[Double],
-  //   agreement: Option[Double],
-  //   earnings: Double)
+  case class StatSummary(
+    workerId: String,
+    numAs: Option[Int],
+    numInvalidAnswers: Option[Int],
+    pctBad: Option[Double],
+    agreement: Option[Double],
+    earnings: Double)
 
-  // case class AggregateStatSummary(
-  //   numVerbs: Int,
-  //   numQs: Int,
-  //   numAs: Int,
-  //   numInvalidAnswers: Int,
-  //   totalCost: Double) {
-  //   def combine(worker: StatSummary) = AggregateStatSummary(
-  //     numVerbs + worker.numVerbs.getOrElse(0),
-  //     numQs + worker.numQs.getOrElse(0),
-  //     numAs + worker.numAs.getOrElse(0) + worker.numInvalidAnswers.getOrElse(0),
-  //     numInvalidAnswers + worker.numInvalidAnswers.getOrElse(0),
-  //     totalCost + worker.earnings
-  //   )
-  // }
-  // object AggregateStatSummary {
-  //   def empty = AggregateStatSummary(0, 0, 0, 0, 0.0)
-  // }
+  case class AggregateStatSummary(
+    numAs: Int,
+    numInvalidAnswers: Int,
+    totalCost: Double) {
+    def combine(worker: StatSummary) = AggregateStatSummary(
+      numAs + worker.numAs.getOrElse(0) + worker.numInvalidAnswers.getOrElse(0),
+      numInvalidAnswers + worker.numInvalidAnswers.getOrElse(0),
+      totalCost + worker.earnings
+    )
+  }
+  object AggregateStatSummary {
+    def empty = AggregateStatSummary(0, 0, 0.0)
+  }
 
-  // object StatSummary {
-  //   def makeFromStatsAndInfo(
-  //     stats: Option[QASRLGenerationWorkerStats],
-  //     info: Option[QASRLValidationWorkerInfo]
-  //   ) = stats.map(_.workerId).orElse(info.map(_.workerId)).map { wid =>
-  //     StatSummary(
-  //       workerId = wid,
-  //       numVerbs = stats.map(_.numAssignmentsCompleted),
-  //       numQs = stats.map(_.numQAPairsWritten),
-  //       accuracy = stats.map(_.accuracy),
-  //       numAs = info.map(i => i.numAnswerSpans + i.numInvalids),
-  //       numInvalidAnswers = info.map(_.numInvalids),
-  //       pctBad = info.map(_.proportionInvalid * 100.0),
-  //       agreement = info.map(_.agreement),
-  //       earnings = stats.fold(0.0)(_.earnings) + info.fold(0.0)(_.earnings)
-  //     )
-  //   }
-  // }
+  object StatSummary {
+    def makeFromInfo(
+      info: Option[QASRLValidationWorkerInfo]
+    ) = info.map(_.workerId).map { wid =>
+      StatSummary(
+        workerId = wid,
+        numAs = info.map(i => i.numAnswerSpans + i.numInvalids),
+        numInvalidAnswers = info.map(_.numInvalids),
+        pctBad = info.map(_.proportionInvalid * 100.0),
+        agreement = info.map(_.agreement),
+        earnings = info.fold(0.0)(_.earnings)
+      )
+    }
+  }
 
-  // def allStatSummaries = {
-  //   val allStats = accuracyTrackerPeek.allWorkerStats
-  //   val allInfos = valManagerPeek.allWorkerInfo
-  //   (allStats.keys ++ allInfos.keys).toSet.toList.flatMap((wid: String) =>
-  //     StatSummary.makeFromStatsAndInfo(allStats.get(wid), allInfos.get(wid))
-  //   )
-  // }
+  def allStatSummaries = {
+    val allInfos = valManagerPeek.allWorkerInfo
+    allInfos.keySet.toList.flatMap((wid: String) =>
+      StatSummary.makeFromInfo(allInfos.get(wid))
+    )
+  }
 
-  // def printStatsHeading =
-  //   println(f"${"Worker ID"}%14s  ${"Verbs"}%5s  ${"Qs"}%5s  ${"Acc"}%4s  ${"As"}%5s  ${"%Bad"}%5s  ${"Agr"}%4s  $$")
+  def printStatsHeading =
+    println(f"${"Worker ID"}%14s  ${"As"}%5s  ${"%Bad"}%5s  ${"Agr"}%4s  $$")
 
-  // def printSingleStatSummary(ss: StatSummary): Unit = ss match {
-  //   case StatSummary(wid, numVerbsOpt, numQsOpt, accOpt, numAsOpt, numInvalidsOpt, pctBadOpt, agrOpt, earnings)=>
-  //     val numVerbs = numVerbsOpt.getOrElse("")
-  //     val numQs = numQsOpt.getOrElse("")
-  //     val acc = accOpt.foldMap(pct => f"$pct%.2f")
-  //     val numAs = numAsOpt.getOrElse("")
-  //     val pctBad = pctBadOpt.foldMap(pct => f"$pct%4.2f")
-  //     val agr = agrOpt.foldMap(pct => f"$pct%.2f")
-  //     println(f"$wid%14s  $numVerbs%5s  $numQs%5s  $acc%4s  $numAs%5s  $pctBad%5s  $agr%4s  $earnings%.2f")
-  // }
+  def printSingleStatSummary(ss: StatSummary): Unit = ss match {
+    case StatSummary(wid, numAsOpt, numInvalidsOpt, pctBadOpt, agrOpt, earnings)=>
+      val numAs = numAsOpt.getOrElse("")
+      val pctBad = pctBadOpt.foldMap(pct => f"$pct%4.2f")
+      val agr = agrOpt.foldMap(pct => f"$pct%.2f")
+      println(f"$wid%14s  $numAs%5s  $pctBad%5s  $agr%4s  $earnings%.2f")
+  }
 
-  // def statsForWorker(workerId: String): Option[StatSummary] = allStatSummaries.find(_.workerId == workerId)
+  def statsForWorker(workerId: String): Option[StatSummary] = allStatSummaries.find(_.workerId == workerId)
 
-  // def printStatsForWorker(workerId: String) = statsForWorker(workerId) match {
-  //   case None => println("No stats for worker.")
-  //   case Some(ss) =>
-  //     printStatsHeading
-  //     printSingleStatSummary(ss)
-  // }
+  def printStatsForWorker(workerId: String) = statsForWorker(workerId) match {
+    case None => println("No stats for worker.")
+    case Some(ss) =>
+      printStatsHeading
+      printSingleStatSummary(ss)
+  }
 
-  // def printStats[B : Ordering](sortFn: StatSummary => B) = {
-  //   val summaries = allStatSummaries.sortBy(sortFn)
-  //   printStatsHeading
-  //   summaries.foreach(printSingleStatSummary)
-  // }
+  def printStats[B : Ordering](sortFn: StatSummary => B) = {
+    val summaries = allStatSummaries.sortBy(sortFn)
+    printStatsHeading
+    summaries.foreach(printSingleStatSummary)
+  }
 
-  // def printQStats = printStats(-_.numQs.getOrElse(0))
-  // def printAStats = printStats(-_.numAs.getOrElse(0))
+  def printAllStats = printStats(-_.numAs.getOrElse(0))
 
-  // def printCoverageStats = genManagerPeek.coverageStats.toList
-  //   .sortBy(-_._2.size)
-  //   .map { case (workerId, numQs) => f"$workerId%s\t${numQs.size}%d\t${numQs.sum.toDouble / numQs.size}%.2f" }
-  //   .foreach(println)
+  def printFeedbacks(n: Int = 15) = valManagerPeek.feedbacks.take(n).foreach(a =>
+    println(a.workerId + " " + a.feedback)
+  )
 
-  // def printGenFeedback(n: Int) = genManagerPeek.feedbacks.take(n).foreach(a =>
-  //   println(a.workerId + " " + a.feedback)
-  // )
-  // def printValFeedback(n: Int) = valManagerPeek.feedbacks.take(n).foreach(a =>
-  //   println(a.workerId + " " + a.feedback)
-  // )
+  def aggregateStats = allStatSummaries.foldLeft(AggregateStatSummary.empty)(_ combine _)
 
-  // def printAllFeedbacks(n: Int = Int.MaxValue) = {
-  //   println("Generation:")
-  //   printGenFeedback(n)
-  //   println("\nValidation:")
-  //   printValFeedback(n)
-  // }
-
-  // def aggregateStats = allStatSummaries.foldLeft(AggregateStatSummary.empty)(_ combine _)
-
-  // def printAggregateStats = aggregateStats match {
-  //   case AggregateStatSummary(numVerbs, numQs, numAs, numInvalidAnswers, totalCost) =>
-  //     println(f"${"Num verbs:"}%-20s$numVerbs%d")
-  //     println(f"${"Num questions:"}%-20s$numQs%d")
-  //     println(f"${"Num answers:"}%-20s$numAs%d")
-  //     println(f"${"Num invalids:"}%-20s$numInvalidAnswers%d")
-  //     println(f"${"Total cost:"}%-20s$totalCost%.2f")
-  // }
+  def printAggregateStats = aggregateStats match {
+    case AggregateStatSummary(numAs, numInvalidAnswers, totalCost) =>
+      println(f"${"Num answers:"}%-20s$numAs%d")
+      println(f"${"Num invalids:"}%-20s$numInvalidAnswers%d")
+      println(f"${"Total cost:"}%-20s$totalCost%.2f")
+  }
 }
