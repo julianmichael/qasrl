@@ -49,9 +49,9 @@ class QASRLEvaluationHITManager[SID : Reader : Writer](
   def christenWorker(workerId: String, numAgreementsToAdd: Int) = {
     allWorkerInfo = allWorkerInfo.get(workerId).fold(allWorkerInfo) { info =>
       val newInfo = info.addBonusAgreements(numAgreementsToAdd)
-      assessQualification(newInfo)
       allWorkerInfo.updated(workerId, newInfo)
     }
+    assessQualification(workerId)
   }
 
   var evaluationStats = {
@@ -104,33 +104,34 @@ class QASRLEvaluationHITManager[SID : Reader : Writer](
 
   import scala.collection.JavaConverters._
 
-  def assessQualification(worker: QASRLEvaluationWorkerInfo): Unit = {
-    // if(worker.isLikelySpamming) blockWorker(worker.workerId)
-    /* else */ Try {
-      val workerIsDisqualified = helper.config.service
-        .listAllWorkersWithQualificationType(valDisqualificationTypeId)
-        .contains(worker.workerId)
+  def assessQualification(workerId: String): Unit =
+    allWorkerInfo.get(workerId).foreach { worker =>
+      // if(worker.isLikelySpamming) blockWorker(worker.workerId)
+      /* else */ Try {
+        val workerIsDisqualified = helper.config.service
+          .listAllWorkersWithQualificationType(valDisqualificationTypeId)
+          .contains(worker.workerId)
 
-      val workerShouldBeDisqualified = !worker.agreement.isNaN &&
-        worker.agreement < settings.validationAgreementBlockingThreshold &&
-        worker.numAssignmentsCompleted > settings.validationAgreementGracePeriod
+        val workerShouldBeDisqualified = !worker.agreement.isNaN &&
+          worker.agreement < settings.validationAgreementBlockingThreshold &&
+          worker.numAssignmentsCompleted > settings.validationAgreementGracePeriod
 
-      if(workerIsDisqualified && !workerShouldBeDisqualified) {
-        helper.config.service.disassociateQualificationFromWorker(
-          new DisassociateQualificationFromWorkerRequest()
-            .withQualificationTypeId(valDisqualificationTypeId)
-            .withWorkerId(worker.workerId)
-            .withReason("Agreement dropped too low on the question answering task."))
-      } else if(!workerIsDisqualified && workerShouldBeDisqualified) {
-        helper.config.service.associateQualificationWithWorker(
-          new AssociateQualificationWithWorkerRequest()
-            .withQualificationTypeId(valDisqualificationTypeId)
-            .withWorkerId(worker.workerId)
-            .withIntegerValue(1)
-            .withSendNotification(true))
+        if(workerIsDisqualified && !workerShouldBeDisqualified) {
+          helper.config.service.disassociateQualificationFromWorker(
+            new DisassociateQualificationFromWorkerRequest()
+              .withQualificationTypeId(valDisqualificationTypeId)
+              .withWorkerId(worker.workerId)
+              .withReason("Agreement dropped too low on the question answering task."))
+        } else if(!workerIsDisqualified && workerShouldBeDisqualified) {
+          helper.config.service.associateQualificationWithWorker(
+            new AssociateQualificationWithWorkerRequest()
+              .withQualificationTypeId(valDisqualificationTypeId)
+              .withWorkerId(worker.workerId)
+              .withIntegerValue(1)
+              .withSendNotification(true))
+        }
       }
     }
-  }
 
   // def blockWorker(workerId: String) = {
   //   if(!blockedValidators.contains(workerId)) {
@@ -197,29 +198,37 @@ class QASRLEvaluationHITManager[SID : Reader : Writer](
     //   accuracyStatsActor ! QASRLValidationResult(hit.prompt, assignment.workerId, assignment.response)
     // }
 
-    // do comparisons with other workers
-    def compareAssignments(
-      target: Assignment[List[QASRLValidationAnswer]],
-      ref1: Assignment[List[QASRLValidationAnswer]],
-      ref2: Assignment[List[QASRLValidationAnswer]]
-    ): Unit = {
-      val comparisons = target.response.zip(List(ref1, ref2).map(_.response).transpose).map {
-        case (givenAnswer, refAnswers) => refAnswers.exists(_ agreesWith givenAnswer)
-      }
-      // should always be present because either we just added it or it was previously reviewed
-      val targetInfo = allWorkerInfo(target.workerId)
-      val newTargetInfo = targetInfo.addComparisons(comparisons)
-      assessQualification(newTargetInfo)
-      allWorkerInfo = allWorkerInfo.updated(target.workerId, newTargetInfo)
-    }
-
-    val assignments = helper.allCurrentHITInfos(hit.prompt).flatMap(_.assignments).toList
-    assignments match {
-      case other1 :: other2 :: Nil =>
-        compareAssignments(assignment, other1, other2)
-        compareAssignments(other1, assignment, other2)
-        compareAssignments(other2, assignment, other1)
+    val finishedAssignments = helper.allCurrentHITInfos(hit.prompt).flatMap(_.assignments).toList
+    finishedAssignments match {
+      case a1 :: a2 :: a3 :: Nil =>
+        allWorkerInfo = QASRLEvaluationHITManager.updateStatsWithAllComparisons(a1, a2, a3)(allWorkerInfo)
       case _ => () // wait until all are done
     }
+    finishedAssignments.map(_.workerId).foreach(assessQualification)
+  }
+}
+
+object QASRLEvaluationHITManager {
+  def updateStatsWithComparison(
+    target: Assignment[List[QASRLValidationAnswer]],
+    ref1: Assignment[List[QASRLValidationAnswer]],
+    ref2: Assignment[List[QASRLValidationAnswer]]
+  ) = (stats: Map[String, QASRLEvaluationWorkerInfo]) => {
+    val comparisons = target.response.zip(List(ref1, ref2).map(_.response).transpose).map {
+      case (givenAnswer, refAnswers) => refAnswers.exists(_ agreesWith givenAnswer)
+    }
+    val targetInfo = stats(target.workerId)
+    val newTargetInfo = targetInfo.addComparisons(comparisons)
+    stats.updated(target.workerId, newTargetInfo)
+  }
+
+  def updateStatsWithAllComparisons(
+    a1: Assignment[List[QASRLValidationAnswer]],
+    a2: Assignment[List[QASRLValidationAnswer]],
+    a3: Assignment[List[QASRLValidationAnswer]]
+  ) = {
+    updateStatsWithComparison(a1, a2, a3) andThen
+    updateStatsWithComparison(a2, a1, a3) andThen
+    updateStatsWithComparison(a3, a1, a2)
   }
 }
