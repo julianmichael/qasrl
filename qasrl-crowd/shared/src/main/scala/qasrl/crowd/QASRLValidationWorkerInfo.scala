@@ -6,18 +6,12 @@ import cats.implicits._
 
 case class QASRLValidationResponseComparison(
   thisResponse: QASRLValidationAnswer,
-  thatResponse: QASRLValidationAnswer,
-  thatWorker: String) {
-  def isAgreement = (thisResponse, thatResponse) match {
-    case (InvalidQuestion, InvalidQuestion) => true
-    case (Answer(spans1), Answer(spans2)) =>
-      spans1.exists(span1 =>
-        spans2.exists(span2 =>
-          (span1.begin to span1.end).toSet.intersect((span2.begin to span2.end).toSet).nonEmpty
-        )
-      )
-    case _ => false
-  }
+  otherResponses: List[(String, QASRLValidationAnswer)]
+) {
+  def isAgreement = (
+    // size of set of agreeing answers...
+    otherResponses.map(_._2.agreesWith(thisResponse)).filter(identity).size + 1.0
+  ) >= ((otherResponses.size + 1) / 2.0) // is a majority (or tie)
 }
 
 /** Data structure to keep track of a single worker's stats on the validation task. */
@@ -33,29 +27,40 @@ case class QASRLValidationWorkerInfo(
 
   def summary = QASRLValidationWorkerInfoSummary(proportionInvalid, numAssignmentsCompleted, agreement)
 
+  def hardAgreement =  {
+    (List.fill(numBonusAgreements)(true) ++ comparisons.map(_.isAgreement)).proportion(identity)
+  }
+
   def agreement = {
     val spanAgreements = for {
       cmp <- comparisons
-      a1 <- cmp.thisResponse.getAnswer
-      a2 <- cmp.thatResponse.getAnswer
-    } yield a1.spans.exists(span1 =>
-      a2.spans.exists(span2 =>
-        (span1.begin to span1.end).toSet.intersect((span2.begin to span2.end).toSet).nonEmpty
+      thisAnswer <- cmp.thisResponse.getAnswer
+      otherAnswers = cmp.otherResponses.flatMap(_._2.getAnswer)
+      if otherAnswers.nonEmpty
+    } yield {
+      val agreements = otherAnswers.map(thatAnswer =>
+        thisAnswer.spans.exists(span1 =>
+          thatAnswer.spans.exists(span2 =>
+            (span1.begin to span1.end).toSet.intersect((span2.begin to span2.end).toSet).nonEmpty
+          )
+        )
       )
-    )
+
+      (agreements.filter(identity).size + 1.0) > ((agreements.size + 1) / 2.0)
+    }
     (List.fill(numBonusAgreements)(true) ++ spanAgreements).proportion(identity)
   }
 
   // def averageNumberOfSpans = comparisons.flatMap(_.thisResponse.getAnswer).map(_.spans.size).meanOpt.getOrElse(-1.0)
 
   def isLikelySpamming = comparisons.take(15)
-    .filter(c => c.thisResponse.isInvalid && c.thatResponse.isAnswer)
+    .filter(c => c.thisResponse.isInvalid && c.otherResponses.exists(_._2.isAnswer))
     .size > 8
 
   def wasEverLikelySpamming = comparisons.sliding(15)
     .map(group =>
     group
-      .filter(c => c.thisResponse.isInvalid && c.thatResponse.isAnswer)
+      .filter(c => c.thisResponse.isInvalid && c.otherResponses.exists(_._2.isAnswer))
       .size > 8
   ).exists(identity)
 
@@ -78,7 +83,7 @@ case class QASRLValidationWorkerInfo(
 
   // e.g. if a worker is blocked
   def removeComparisonsWithWorker(otherWorkerId: String) = this.copy(
-    comparisons = this.comparisons.filterNot(_.thatWorker == otherWorkerId)
+    comparisons = this.comparisons.map(c => c.copy(otherResponses = c.otherResponses.filter(_._1 != otherWorkerId)))
   )
 }
 

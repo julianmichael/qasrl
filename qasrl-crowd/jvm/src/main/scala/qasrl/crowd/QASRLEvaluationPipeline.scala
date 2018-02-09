@@ -283,10 +283,18 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
 
   def printWorstInfos(workerId: String, n: Int = 5) =
     infosForWorker(workerId)
-      .sortBy(hi => hi.hit.prompt.qaPairs.size.toDouble - (
-                hi.assignments.tail.map(
-                  a => (hi.assignments.head.response, a.response, List.fill(a.response.size)(a.workerId)).zipped.map(QASRLValidationResponseComparison(_, _, _)).filter(_.isAgreement).size
-                ).meanOpt.getOrElse(hi.hit.prompt.qaPairs.size + 1.0))) // if no other answers, put at top
+      .sortBy { hi =>
+      if(hi.assignments.size <= 1) Int.MinValue else {
+        val totalQAPairs = hi.hit.prompt.qaPairs.size.toDouble
+        val agreedQAPairs = hi.assignments.head.response
+          .zip(hi.assignments.tail.map(a => a.response.map(a.workerId -> _)).transpose)
+          .map { case (givenAnswer, refPairs) =>
+            QASRLValidationResponseComparison(
+              givenAnswer,
+              refPairs.filter(p => !valManagerPeek.blockedValidators.contains(p._1))
+            ) }
+          .filter(_.isAgreement).size
+        totalQAPairs - agreedQAPairs } }
       .takeRight(n)
       .map(renderValidation)
       .foreach(println)
