@@ -275,7 +275,11 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
       }.mkString("\n") + "\n"
   }
 
-  def printLatestInfos(workerId: String, n: Int = 5) =
+  def printLatestInfos(n: Int = 5) = {
+    latestInfos(n).map(renderValidation).foreach(println)
+  }
+
+  def printLatestInfosForWorker(workerId: String, n: Int = 5) =
     infosForWorker(workerId)
       .takeRight(n)
       .map(renderValidation)
@@ -305,6 +309,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     numInvalidAnswers: Option[Int],
     pctBad: Option[Double],
     agreement: Option[Double],
+    hardAgreement: Option[Double],
     earnings: Double)
 
   case class AggregateStatSummary(
@@ -330,6 +335,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
         numAs = info.map(i => i.numAnswerSpans + i.numInvalids),
         numInvalidAnswers = info.map(_.numInvalids),
         pctBad = info.map(_.proportionInvalid * 100.0),
+        hardAgreement = info.map(_.hardAgreement),
         agreement = info.map(_.agreement),
         earnings = info.fold(0.0)(_.earnings)
       )
@@ -344,14 +350,15 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   }
 
   def printStatsHeading =
-    println(f"${"Worker ID"}%14s  ${"As"}%5s  ${"%Bad"}%5s  ${"Agr"}%4s  $$")
+    println(f"${"Worker ID"}%14s  ${"As"}%5s  ${"%Bad"}%5s  ${"Agr"}%4s  ${"HAgr"}%4s  $$")
 
   def printSingleStatSummary(ss: StatSummary): Unit = ss match {
-    case StatSummary(wid, numAsOpt, numInvalidsOpt, pctBadOpt, agrOpt, earnings)=>
+    case StatSummary(wid, numAsOpt, numInvalidsOpt, pctBadOpt, hardAgrOpt, agrOpt, earnings)=>
       val numAs = numAsOpt.getOrElse("")
       val pctBad = pctBadOpt.foldMap(pct => f"$pct%4.2f")
       val agr = agrOpt.foldMap(pct => f"$pct%.2f")
-      println(f"$wid%14s  $numAs%5s  $pctBad%5s  $agr%4s  $earnings%.2f")
+      val hardAgr = hardAgrOpt.foldMap(pct => f"$pct%.2f")
+      println(f"$wid%14s  $numAs%5s  $pctBad%5s  $agr%4s  $hardAgrOpt%4s  $earnings%.2f")
   }
 
   def statsForWorker(workerId: String): Option[StatSummary] = allStatSummaries.find(_.workerId == workerId)

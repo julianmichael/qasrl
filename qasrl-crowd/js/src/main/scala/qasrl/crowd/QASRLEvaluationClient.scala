@@ -212,30 +212,43 @@ class QASRLEvaluationClient[SID : Writer : Reader](
                           <.div(
                             ^.classSet1("card"),
                             ^.margin := "5px",
-                            <.p(
-                              f"""You have marked ${summary.proportionInvalid * 100.0}%.1f%% of questions as invalid.
-                               In general, you should expect this to be around 10%%
-                               unless you are getting an unusually good set of questions. """,
-                              (
-                                if(summary.proportionInvalid < 0.6) " Consider being harsher on bad questions if necessary. "
-                                else ""
-                              )
+                            <.p( // TODO
+                              <.span(
+                                Styles.bolded,
+                                """Proportion of questions you marked invalid: """,
+                                <.span(
+                                  if(summary.proportionInvalid < 0.15 || summary.proportionInvalid > 0.3) {
+                                    Styles.badRed
+                                  } else {
+                                    Styles.goodGreen
+                                  },
+                                  f"""${summary.proportionInvalid * 100.0}%.1f%%"""
+                                ),
+                                "."
+                              ),
+                              f""" This should generally be between 15%% and 30%%. """,
+                              (if(summary.proportionInvalid < 0.15) " Please be harsher on bad questions. "
+                               else "")
                             ).when(!summary.proportionInvalid.isNaN),
                             <.p(
-                              """Your responses agree with others """,
                               <.span(
-                                if(summary.agreement <= settings.validationAgreementBlockingThreshold) {
-                                  Styles.badRed
-                                } else if(summary.agreement <= settings.validationAgreementBlockingThreshold + 0.05) {
-                                  TagMod(Styles.uncomfortableOrange, Styles.bolded)
-                                } else {
-                                  Styles.goodGreen
-                                },
-                                f"${summary.agreement * 100.0}%.1f%%"
+                                Styles.bolded,
+                                "Agreement score: ",
+                                <.span(
+                                  if(summary.agreement <= settings.validationAgreementBlockingThreshold) {
+                                    Styles.badRed
+                                  } else if(summary.agreement <= settings.validationAgreementBlockingThreshold + 0.05) {
+                                    TagMod(Styles.uncomfortableOrange, Styles.bolded)
+                                  } else {
+                                    Styles.goodGreen
+                                  },
+                                  f"""${summary.agreement * 100.0}%.1f%%"""
+                                ),
+                                "."
                               ),
-                              f""" of the time. This must remain above ${settings.validationAgreementBlockingThreshold * 100.0}%.1f%%""",
+                              f""" This must remain above ${settings.validationAgreementBlockingThreshold * 100.0}%.1f%%""",
                               getRemainingInAgreementGracePeriodOpt(summary).fold(".")(remaining =>
-                                s" after the end of a grace period ($remaining verbs remaining)."
+                                s" after the end of a grace period ($remaining HITs remaining)."
                               )
                             ).when(!summary.agreement.isNaN)
                           )
