@@ -237,7 +237,7 @@ class QASRLEvaluationClient[SID : Writer : Reader](
                                 <.span(
                                   if(summary.agreement <= settings.validationAgreementBlockingThreshold) {
                                     Styles.badRed
-                                  } else if(summary.agreement <= settings.validationAgreementBlockingThreshold + 0.05) {
+                                  } else if(summary.agreement <= settings.validationAgreementBlockingThreshold + 0.025) {
                                     TagMod(Styles.uncomfortableOrange, Styles.bolded)
                                   } else {
                                     Styles.goodGreen
