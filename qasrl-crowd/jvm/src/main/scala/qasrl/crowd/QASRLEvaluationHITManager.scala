@@ -112,8 +112,8 @@ class QASRLEvaluationHITManager[SID : Reader : Writer](
           .listAllWorkersWithQualificationType(valDisqualificationTypeId)
           .contains(worker.workerId)
 
-        val workerShouldBeDisqualified = !worker.hardAgreement.isNaN &&
-          worker.hardAgreement < settings.validationAgreementBlockingThreshold &&
+        val workerShouldBeDisqualified = !worker.agreement.isNaN &&
+          worker.agreement < settings.validationAgreementBlockingThreshold &&
           worker.numAssignmentsCompleted > settings.validationAgreementGracePeriod
 
         if(workerIsDisqualified && !workerShouldBeDisqualified) {
