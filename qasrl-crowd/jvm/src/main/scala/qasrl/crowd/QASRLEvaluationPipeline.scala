@@ -161,7 +161,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
           valManagerP <- Option(valManagerPeek)
           workerId <- workerIdOpt
           info <- valManagerP.allWorkerInfo.get(workerId)
-        } yield info.summary
+        } yield info.summary.copy(agreement = info.hardAgreement) // since we're using hard agreement
 
         QASRLValidationAjaxResponse(workerInfoSummaryOpt, id.tokens)
     }
