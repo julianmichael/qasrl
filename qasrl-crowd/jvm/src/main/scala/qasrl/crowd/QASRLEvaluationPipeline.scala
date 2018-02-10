@@ -358,7 +358,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
       val pctBad = pctBadOpt.foldMap(pct => f"$pct%4.2f")
       val agr = agrOpt.foldMap(pct => f"$pct%.2f")
       val hardAgr = hardAgrOpt.foldMap(pct => f"$pct%.2f")
-      println(f"$wid%14s  $numAs%5s  $pctBad%5s  $agr%4s  $hardAgrOpt%4s  $earnings%.2f")
+      println(f"$wid%14s  $numAs%5s  $pctBad%5s  $agr%4s  $hardAgr%4s  $earnings%.2f")
   }
 
   def statsForWorker(workerId: String): Option[StatSummary] = allStatSummaries.find(_.workerId == workerId)

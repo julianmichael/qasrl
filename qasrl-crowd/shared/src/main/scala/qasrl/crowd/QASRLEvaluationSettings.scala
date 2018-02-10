@@ -16,10 +16,10 @@ trait QASRLEvaluationSettings {
   def validationBonus(numQuestions: Int) =
     math.max(0.0, validationBonusPerQuestion * (numQuestions - validationBonusThreshold))
 
-  val validationAgreementBlockingThreshold = 0.80
-  val validationAgreementGracePeriod = 10
+  val validationAgreementBlockingThreshold = 0.85
+  val validationAgreementGracePeriod = 15
 
-  val invalidProportionBlockingThreshold = 0.7
+  val invalidProportionBlockingThreshold = 0.8
   val invalidProportionBlockingGracePeriod = 10
 }
 
