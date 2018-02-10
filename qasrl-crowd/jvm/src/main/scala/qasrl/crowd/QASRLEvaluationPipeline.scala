@@ -353,7 +353,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     println(f"${"Worker ID"}%14s  ${"As"}%5s  ${"%Bad"}%5s  ${"Agr"}%4s  ${"HAgr"}%4s  $$")
 
   def printSingleStatSummary(ss: StatSummary): Unit = ss match {
-    case StatSummary(wid, numAsOpt, numInvalidsOpt, pctBadOpt, hardAgrOpt, agrOpt, earnings)=>
+    case StatSummary(wid, numAsOpt, numInvalidsOpt, pctBadOpt, agrOpt, hardAgrOpt, earnings)=>
       val numAs = numAsOpt.getOrElse("")
       val pctBad = pctBadOpt.foldMap(pct => f"$pct%4.2f")
       val agr = agrOpt.foldMap(pct => f"$pct%.2f")
