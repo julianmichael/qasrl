@@ -3,6 +3,8 @@ package qasrl.crowd
 import qasrl.crowd.util.PosTagger
 import qasrl.crowd.util.implicits._
 
+import qasrl.labeling.SlotBasedLabel
+
 import cats.implicits._
 
 import akka.actor._
@@ -41,10 +43,10 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   val allPrompts: Vector[QASRLEvaluationPrompt[SID]], // IDs of sentences to annotate
   frozenEvaluationHITTypeId: Option[String] = None,
   validationAgreementDisqualTypeLabel: Option[String] = None)(
-  implicit config: TaskConfig,
-  annotationDataService: AnnotationDataService,
-  settings: QASRLEvaluationSettings,
-  inflections: Inflections
+  implicit val config: TaskConfig,
+  val annotationDataService: AnnotationDataService,
+  val settings: QASRLEvaluationSettings,
+  val inflections: Inflections
 ) extends StrictLogging {
 
   import config.hitDataService
@@ -240,8 +242,6 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   // in the future you could have a nice dashboard UI that will help you examine common sources of issues
 
   def allInfos = hitDataService.getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](valTaskSpec.hitTypeId).get
-
-  def allWorkers = allInfos.flatMap(_.assignments).map(_.workerId).toSet.toList
 
   def latestInfos(n: Int = 5) = allInfos
     .filter(_.assignments.nonEmpty)

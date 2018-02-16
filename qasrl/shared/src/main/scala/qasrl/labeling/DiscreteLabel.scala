@@ -58,7 +58,13 @@ object DiscreteLabel {
        verbInflectedForms: InflectedForms,
        questions: List[String]
       ) => questions.flatMap { question =>
-        val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms)
+        val questionTokensIsh = question.init.split(" ").toVector.map(_.lowerCase)
+        val qPreps = questionTokensIsh.filter(TemplateStateMachine.allPrepositions.contains).toSet
+        val qPrepBigrams = questionTokensIsh.sliding(2)
+          .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
+          .map(_.mkString(" ").lowerCase)
+          .toSet
+        val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms, Some(qPreps ++ qPrepBigrams))
         val template = new QuestionProcessor(stateMachine)
         template.processStringFully(question) match {
           case Left(QuestionProcessor.AggregatedInvalidState(_, _)) => None

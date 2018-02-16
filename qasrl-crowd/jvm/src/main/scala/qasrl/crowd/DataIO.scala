@@ -24,7 +24,63 @@ import nlpdata.util.Text
 
 import com.typesafe.scalalogging.LazyLogging
 
+@deprecated("Use JSON format instead; see JsonCodecs in QASRLDataset.scala", "qasrl-crowd 0.1")
 object DataIO extends LazyLogging {
+
+  def makeEvaluationQAPairTSV[SID : HasTokens, QuestionLabel](
+    ids: List[SID],
+    writeId: SID => String, // serialize sentence ID for distribution in data file
+    infos: List[HITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]]],
+    mapLabels: QuestionLabelMapper[String, QuestionLabel],
+    renderLabel: QuestionLabel => String)(
+    implicit inflections: Inflections
+  ): String = {
+    val infosBySentenceId = infos.groupBy(_.hit.prompt.id).withDefaultValue(Nil)
+    // val genInfosBySentenceId = genInfos.groupBy(_.hit.prompt.id).withDefaultValue(Nil)
+    // val valInfosByGenAssignmentId = valInfos.groupBy(_.hit.prompt.sourceAssignmentId).withDefaultValue(Nil)
+    val sb = new StringBuilder
+    for(id <- ids) {
+      val idString = writeId(id)
+      val sentenceTokens = id.tokens
+      val sentenceSB = new StringBuilder
+      var shouldIncludeSentence = false // for now, print everything
+      sentenceSB.append(s"${idString}\t${sentenceTokens.mkString(" ")}\n")
+      val qaTuplesByVerbIndex = {
+        val qas = for {
+          HITInfo(hit, assignments) <- infosBySentenceId(id)
+          (qaPair, answers) <- hit.prompt.qaPairs.zip(assignments.map(_.response).transpose)
+        } yield (hit.prompt.sourceId, qaPair, answers)
+        qas.groupBy(_._2.verbIndex)
+      }
+      for {
+        (verbIndex, qaTuples) <- qaTuplesByVerbIndex
+        inflForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase).toList
+        labels = mapLabels(sentenceTokens, inflForms, qaTuples.map(_._2.question))
+        ((sourceId, _, answers), Some(qLabel)) <- qaTuples.zip(labels)
+      } yield {
+        val valAnswerSpans = answers.flatMap(_.getAnswer).map(_.spans)
+        if(valAnswerSpans.size == 3) {
+          shouldIncludeSentence = true
+          sentenceSB.append("\t")
+          sentenceSB.append(verbIndex.toString + "\t")
+          sentenceSB.append(sourceId + "\t")
+          sentenceSB.append(renderLabel(qLabel) + "\t")
+          sentenceSB.append(
+            valAnswerSpans.map { spans =>
+              spans
+                .map(span => s"${span.begin}-${span.end}")
+                .mkString(";")
+            }.mkString("\t")
+          )
+          sentenceSB.append("\n")
+        }
+      }
+      if(shouldIncludeSentence) {
+        sb.append(sentenceSB.toString)
+      }
+    }
+    sb.toString
+  }
 
   def makeQAPairTSV[SID : HasTokens, QuestionLabel](
     ids: List[SID],
@@ -69,6 +125,7 @@ object DataIO extends LazyLogging {
           shouldIncludeSentence = true
           sentenceSB.append("\t")
           sentenceSB.append(wqa.verbIndex.toString + "\t")
+          sentenceSB.append(s"turk-${genAssignment.workerId}" + "\t")
           sentenceSB.append(renderLabel(qLabel) + "\t")
           sentenceSB.append(
             (wqa.answers :: valAnswerSpans).map { spans =>

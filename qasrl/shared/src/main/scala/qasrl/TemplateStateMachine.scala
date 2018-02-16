@@ -80,14 +80,17 @@ object TemplateStateMachine {
 		"during", "except", "for", "from", "given", "in", "inside", "into", "near", "next",
 		"of", "off", "on", "onto", "opposite", "out", "outside", "over", "pace", "per",
 		"round", "since", "than", "through", "throughout", "till", "times", "to", "toward", "towards",
-		"under", "underneath", "until", "unto", "up", "upon", "versus", "via", "with ", "within",
+		"under", "underneath", "until", "unto", "up", "upon", "versus", "via", "with", "within",
 		"without"
   ).map(_.lowerCase)
+
+  val allPrepositions = mostCommonPrepositions ++ lotsOfPrepositions
 }
 
 class TemplateStateMachine(
   tokens: Vector[String],
-  verbInflectedForms: InflectedForms) {
+  verbInflectedForms: InflectedForms,
+  overridePrepositions: Option[Set[LowerCaseString]] = None) {
 
   import TemplateStateMachine._
 
@@ -99,13 +102,16 @@ class TemplateStateMachine(
   val newPrepositions = lowerTokens.filter(isPreposition)
   val prepositionBigrams = lowerTokens.sliding(2)
     .filter(_.forall(isPreposition))
+    .filter(_.nonEmpty)
     .map(_.mkString(" ").lowerCase)
 
-  val allChosenPrepositions: Set[LowerCaseString] = (
-    newPrepositions.iterator ++
-      prepositionBigrams ++
-      TemplateStateMachine.mostCommonPrepositions.iterator
-  ).toSet
+  val allChosenPrepositions: Set[LowerCaseString] =
+    overridePrepositions.getOrElse(
+      (newPrepositions.iterator ++
+         prepositionBigrams ++
+         TemplateStateMachine.mostCommonPrepositions.iterator
+      ).toSet
+    )
 
   val nonToEndingPrepositions = NonEmptyList.of(
     TemplateStateMachine.mostCommonPrepositions.head,

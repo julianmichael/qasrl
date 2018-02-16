@@ -1,5 +1,7 @@
+val catsVersion = "0.9.0"
 val scalaJSReactVersion = "1.1.0"
 val monocleVersion = "1.4.0-M2"
+val circeVersion = "0.8.0"
 
 lazy val root = project.in(file("."))
   .aggregate(qasrlJVM, qasrlJS, crowdJVM, crowdJS, exampleJVM, exampleJS)
@@ -16,7 +18,7 @@ lazy val commonSettings = Seq(
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4"),
   resolvers += Resolver.sonatypeRepo("snapshots"),
   libraryDependencies += "com.github.julianmichael" %%% "nlpdata" % "0.1-SNAPSHOT",
-  libraryDependencies += "org.typelevel" %% "cats" % "0.9.0",
+  libraryDependencies += "org.typelevel" %% "cats" % catsVersion,
   libraryDependencies += "com.github.julien-truffaut" %%% "monocle-core"  % monocleVersion,
   libraryDependencies += "com.github.julien-truffaut" %%% "monocle-macro" % monocleVersion
 )
@@ -47,8 +49,12 @@ lazy val crowd = crossProject.in(file("qasrl-crowd"))
   .settings(commonSettings).settings(
   name := "qasrl-crowd",
   version := "0.1-SNAPSHOT",
-  libraryDependencies += "com.github.julianmichael" %%% "spacro" % "0.1-SNAPSHOT",
-  libraryDependencies += "com.lihaoyi" %%% "upickle" % "0.4.3"
+  libraryDependencies ++= Seq(
+    "com.github.julianmichael" %%% "spacro" % "0.1-SNAPSHOT",
+    "com.lihaoyi" %%% "upickle" % "0.4.3",
+    "io.circe" %% "circe-core" % circeVersion,
+    "io.circe" %% "circe-generic" % circeVersion,
+    "io.circe" %% "circe-parser" % circeVersion)
 ).jvmSettings(commonJVMSettings).jvmSettings(
   libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-actor" % "2.4.8",

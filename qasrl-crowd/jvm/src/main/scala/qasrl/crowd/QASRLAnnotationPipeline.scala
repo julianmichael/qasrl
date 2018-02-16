@@ -2,6 +2,7 @@ package qasrl.crowd
 
 import qasrl.crowd.util.PosTagger
 import qasrl.crowd.util.implicits._
+import qasrl.labeling.SlotBasedLabel
 
 import cats.implicits._
 
@@ -46,9 +47,9 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
   generationAccuracyDisqualTypeLabel: Option[String] = None,
   generationCoverageDisqualTypeLabel: Option[String] = None,
   validationAgreementDisqualTypeLabel: Option[String] = None)(
-  implicit config: TaskConfig,
-  settings: QASRLSettings,
-  inflections: Inflections
+  implicit val config: TaskConfig,
+  val settings: QASRLSettings,
+  val inflections: Inflections
 ) extends StrictLogging {
 
   def getKeyIndices(id: SID): Set[Int] = {
@@ -310,45 +311,6 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
     taskPageBodyElements = taskPageBodyLinks,
     frozenHITTypeId = frozenValidationHITTypeId)
 
-  // val dashboardApiFlow = Flow[Unit]
-  //   .merge(Source.tick(initialDelay = 0.seconds, interval = 1.minute, ()))
-  //   .filter(_ => smallGenManagerPeek != null &&
-  //             largeGenManagerPeek != null &&
-  //             valManagerPeek != null &&
-  //             sentenceTrackerPeek != null)
-  //   .map { _ =>
-  //   val last5Sentences = sentenceTrackerPeek.finishedSentenceStats.take(5).flatMap { stats =>
-  //     val sentence = stats.id.tokens
-  //     scala.util.Try(
-  //       stats -> SentenceHITInfo(
-  //         sentence,
-  //         stats.genHITIds.toList
-  //           .map(hitDataService.getHITInfo[QASRLGenerationPrompt[SID], List[VerbQA]](genTaskSpec.hitTypeId, _))
-  //           .map(_.get),
-  //         stats.valHITIds.toList
-  //           .map(hitDataService.getHITInfo[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]](valTaskSpec.hitTypeId, _))
-  //           .map(_.get))
-  //     ).toOption
-  //   }.toMap
-  //   SummaryInfo(
-  //     // generation
-  //     numGenActive = smallGenHelper.numActiveHITs + largeGenHelper.numActiveHITs,
-  //     genWorkerStats = genManagerPeek.allWorkerStats,
-  //     genFeedback = (smallGenManagerPeek.feedbacks.take(10) ++ largeGenManagerPeek.feedbacks.take(10)),
-  //     // validation
-  //     numValPromptsWaiting = valManagerPeek.queuedPrompts.numManuallyEnqueued,
-  //     numValActive = valHelper.numActiveHITs,
-  //     valWorkerInfo = valManagerPeek.allWorkerInfo,
-  //     valFeedback = valManagerPeek.feedbacks.take(20),
-  //     // final results
-  //     lastFewSentences = last5Sentences,
-  //     aggSentenceStats = sentenceTrackerPeek.aggregateSentenceStats)
-  // }
-
-  // lazy val dashboardTaskSpec = TaskSpecification.NoAjax[Unit, Unit, Unit, SummaryInfo[SID]](
-  //   dashboardTaskKey, null, dashboardApiFlow, (),
-  //   frozenHITTypeId = null)
-
   // hit management --- circularly defined so they can communicate
 
   import config.actorSystem
@@ -361,14 +323,6 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
       accuracyTrackerPeek
     }
   )
-
-  // var sentenceTrackerPeek: QASRLSentenceTracker[SID] = null
-
-  // lazy val sentenceTracker: ActorRef = actorSystem.actorOf(
-  //   Props {
-  //     sentenceTrackerPeek = new QASRLSentenceTracker[SID](valTaskSpec.hitTypeId)
-  //     sentenceTrackerPeek
-  //   })
 
   var valManagerPeek: QASRLValidationHITManager[SID] = null
 
@@ -478,9 +432,6 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
       id -> Text.render(id.tokens)
     ).toList
   }
-
-  def allGenWorkers = allGenInfos.flatMap(_.assignments).map(_.workerId).toSet.toList
-  def allValWorkers = allValInfos.flatMap(_.assignments).map(_.workerId).toSet.toList
 
   def latestValInfos(n: Int = 5) = allValInfos
     .filter(_.assignments.nonEmpty)

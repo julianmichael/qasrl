@@ -99,7 +99,13 @@ object SlotBasedLabel {
      questions: List[String]
     ) => {
       questions.flatMap { question =>
-        val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms)
+        val questionTokensIsh = question.init.split(" ").toVector.map(_.lowerCase)
+        val qPreps = questionTokensIsh.filter(TemplateStateMachine.allPrepositions.contains).toSet
+        val qPrepBigrams = questionTokensIsh.sliding(2)
+          .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
+          .map(_.mkString(" ").lowerCase)
+          .toSet
+        val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms, Some(qPreps ++ qPrepBigrams))
         val template = new QuestionProcessor(stateMachine)
         val resOpt = template.processStringFully(question) match {
           case Left(QuestionProcessor.AggregatedInvalidState(_, _)) => None
@@ -190,7 +196,13 @@ object SlotBasedLabel {
      verbInflectedForms: InflectedForms,
      pair: (String, SlotBasedLabel[LowerCaseString])
     ) => {
-      val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms)
+      val questionTokensIsh = pair._1.init.split(" ").toVector.map(_.lowerCase)
+      val qPreps = questionTokensIsh.filter(TemplateStateMachine.allPrepositions.contains).toSet
+      val qPrepBigrams = questionTokensIsh.sliding(2)
+        .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
+        .map(_.mkString(" ").lowerCase)
+        .toSet
+      val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms, Some(qPreps ++ qPrepBigrams))
       val template = new QuestionProcessor(stateMachine)
       val (question, rawSlots) = pair
       val frameWithAnswerSlotOpt = template.processStringFully(question) match {
