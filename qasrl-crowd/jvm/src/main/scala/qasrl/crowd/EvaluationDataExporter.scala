@@ -39,7 +39,7 @@ class EvaluationDataExporter[SID : HasTokens](
         val sentenceTokens = id.tokens
         val qaLabelLists = for {
           HITInfo(hit, assignments) <- infos
-          (verbIndex, qaTuples) <- hit.prompt.qaPairs.zip(
+          (verbIndex, qaTuples) <- hit.prompt.sourcedQuestions.zip(
             assignments.map(
               a => a.response.map(AnswerLabel(workerAnonymizationMapping(a.workerId) , _))
             ).transpose
@@ -49,6 +49,8 @@ class EvaluationDataExporter[SID : HasTokens](
           val questionStrings = qaTuples
             .map(_._1.question)
             .map(_.replaceAll("\\s+", " "))
+          val questionSourceSets = qaTuples
+            .map(_._1.sources)
           val questionSlotLabelOpts = SlotBasedLabel.getVerbTenseAbstractedSlotsForQuestion(
             sentenceTokens, verbInflectedForms, questionStrings
           )
@@ -57,11 +59,11 @@ class EvaluationDataExporter[SID : HasTokens](
             case (qString, None) => logger.warn(s"Unprocessable question: $qString")
           }
 
-          (questionStrings, questionSlotLabelOpts, answerSets).zipped.collect {
-            case (questionString, Some(questionSlots), answers) =>
+          (questionStrings zip questionSourceSets zip questionSlotLabelOpts zip answerSets).collect {
+            case (((questionString, questionSources), Some(questionSlots)), answers) =>
               QASRLLabel(
                 QuestionLabel(
-                  Set(hit.prompt.sourceId), verbIndex, verbInflectedForms,
+                  questionSources, verbIndex, verbInflectedForms,
                   questionString, questionSlots),
                 answers
               )

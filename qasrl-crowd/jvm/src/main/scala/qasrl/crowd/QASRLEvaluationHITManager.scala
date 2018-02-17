@@ -25,14 +25,15 @@ import upickle.default._
 import com.typesafe.scalalogging.StrictLogging
 
 class QASRLEvaluationHITManager[SID : Reader : Writer](
-  helper: HITManager.Helper[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]],
   valDisqualificationTypeId: String,
+  helper: HITManager.Helper[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]],
+  numAssignmentsForPrompt: QASRLEvaluationPrompt[SID] => Int,
   initNumHITsToKeepActive: Int,
   _promptSource: Iterator[QASRLEvaluationPrompt[SID]])(
   implicit annotationDataService: AnnotationDataService,
   settings: QASRLEvaluationSettings
 ) extends NumAssignmentsHITManager[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](
-  helper, (_: QASRLEvaluationPrompt[SID]) => 3, initNumHITsToKeepActive, _promptSource, false) {
+  helper, numAssignmentsForPrompt, initNumHITsToKeepActive, _promptSource, false) {
 
   override lazy val receiveAux2: PartialFunction[Any, Unit] = {
     case SaveData => save
@@ -166,7 +167,7 @@ class QASRLEvaluationHITManager[SID : Reader : Writer](
     import assignment.workerId
 
     // grant bonus as appropriate
-    val numQuestions = hit.prompt.qaPairs.size
+    val numQuestions = hit.prompt.sourcedQuestions.size
     val totalBonus = settings.validationBonus(numQuestions)
     if(totalBonus > 0.0) {
       helper.config.service.sendBonus(
@@ -187,10 +188,9 @@ class QASRLEvaluationHITManager[SID : Reader : Writer](
     allWorkerInfo = allWorkerInfo.updated(workerId, newWorkerInfo)
 
     val finishedAssignments = helper.allCurrentHITInfos(hit.prompt).flatMap(_.assignments).toList
-    finishedAssignments match {
-      case a1 :: a2 :: a3 :: Nil =>
-        allWorkerInfo = QASRLEvaluationHITManager.updateStatsWithAllComparisons(a1, a2, a3, blockedValidators)(allWorkerInfo)
-      case _ => () // wait until all are done
+    if(finishedAssignments.size == numAssignmentsForPrompt(hit.prompt)) {
+      allWorkerInfo = QASRLEvaluationHITManager.updateStatsWithAllComparisons(
+        finishedAssignments, blockedValidators)(allWorkerInfo)
     }
     finishedAssignments.map(_.workerId).foreach(assessQualification)
   }
@@ -199,11 +199,10 @@ class QASRLEvaluationHITManager[SID : Reader : Writer](
 object QASRLEvaluationHITManager {
   def updateStatsWithComparison(
     target: Assignment[List[QASRLValidationAnswer]],
-    ref1: Assignment[List[QASRLValidationAnswer]],
-    ref2: Assignment[List[QASRLValidationAnswer]],
+    references: Set[Assignment[List[QASRLValidationAnswer]]],
     blockedWorkerIds: Set[String]
   ) = (stats: Map[String, QASRLValidationWorkerInfo]) => {
-    val comparisons = target.response.zip(List(ref1, ref2).map(a => a.response.map(a.workerId -> _)).transpose).map {
+    val comparisons = target.response.zip(references.toList.map(a => a.response.map(a.workerId -> _)).transpose).map {
       case (givenAnswer, refPairs) =>
         QASRLValidationResponseComparison(
           givenAnswer,
@@ -216,13 +215,12 @@ object QASRLEvaluationHITManager {
   }
 
   def updateStatsWithAllComparisons(
-    a1: Assignment[List[QASRLValidationAnswer]],
-    a2: Assignment[List[QASRLValidationAnswer]],
-    a3: Assignment[List[QASRLValidationAnswer]],
+    assignments: List[Assignment[List[QASRLValidationAnswer]]],
     blockedWorkerIds: Set[String]
   ) = {
-    updateStatsWithComparison(a1, a2, a3, blockedWorkerIds) andThen
-    updateStatsWithComparison(a2, a1, a3, blockedWorkerIds) andThen
-    updateStatsWithComparison(a3, a1, a2, blockedWorkerIds)
+    val assignmentSet = assignments.toSet
+    assignments
+      .map(a => updateStatsWithComparison(a, assignmentSet - a, blockedWorkerIds))
+      .foldLeft(identity[Map[String, QASRLValidationWorkerInfo]](_))(_ compose _)
   }
 }

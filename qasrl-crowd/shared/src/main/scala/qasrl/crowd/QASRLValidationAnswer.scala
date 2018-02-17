@@ -79,8 +79,7 @@ object QASRLValidationAnswer {
   // render a validation response in a readable way for browsing
   def render(
     sentence: Vector[String],
-    va: QASRLValidationAnswer,
-    referenceQAs: List[VerbQA]
+    va: QASRLValidationAnswer
   ): String = va match {
     case InvalidQuestion => "<Invalid>"
     case Answer(spans) => spans.map(span => Text.renderSpan(sentence, (span.begin to span.end).toSet)).mkString(" / ")

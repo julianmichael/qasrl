@@ -470,7 +470,7 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
       info.hit.prompt.qaPairs.zip(info.assignments.map(_.response).transpose).map {
         case (VerbQA(verbIndex, question, answers), validationAnswers) =>
           val answerString = answers.map(s => Text.renderSpan(sentence, (s.begin to s.end).toSet)).mkString(" / ")
-          val validationRenderings = validationAnswers.map(QASRLValidationAnswer.render(sentence, _, info.hit.prompt.qaPairs))
+          val validationRenderings = validationAnswers.map(QASRLValidationAnswer.render(sentence, _))
           val allValidationsString = validationRenderings.toList match {
             case Nil => ""
             case head :: tail => f"$head%20s(${tail.mkString("; ")}%s)"

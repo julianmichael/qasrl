@@ -19,8 +19,11 @@ trait QASRLEvaluationSettings {
   val validationAgreementBlockingThreshold = 0.85
   val validationAgreementGracePeriod = 20
 
-  val invalidProportionBlockingThreshold = 0.8
-  val invalidProportionBlockingGracePeriod = 10
+  val invalidProportionBlockingThreshold = 0.9
+  val invalidProportionBlockingGracePeriod = 15
+
+  val invalidProportionEstimateLowerBound = .10
+  val invalidProportionEstimateUpperBound = .25
 }
 
 object QASRLEvaluationSettings {

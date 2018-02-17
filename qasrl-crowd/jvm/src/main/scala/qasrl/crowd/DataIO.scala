@@ -48,22 +48,22 @@ object DataIO extends LazyLogging {
       val qaTuplesByVerbIndex = {
         val qas = for {
           HITInfo(hit, assignments) <- infosBySentenceId(id)
-          (qaPair, answers) <- hit.prompt.qaPairs.zip(assignments.map(_.response).transpose)
-        } yield (hit.prompt.sourceId, qaPair, answers)
-        qas.groupBy(_._2.verbIndex)
+          (sourcedQuestion, answers) <- hit.prompt.sourcedQuestions.zip(assignments.map(_.response).transpose)
+        } yield (sourcedQuestion, answers)
+        qas.groupBy(_._1.verbIndex)
       }
       for {
-        (verbIndex, qaTuples) <- qaTuplesByVerbIndex
+        (verbIndex, qaPairs) <- qaTuplesByVerbIndex
         inflForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase).toList
-        labels = mapLabels(sentenceTokens, inflForms, qaTuples.map(_._2.question))
-        ((sourceId, _, answers), Some(qLabel)) <- qaTuples.zip(labels)
+        labels = mapLabels(sentenceTokens, inflForms, qaPairs.map(_._1.question))
+        ((SourcedQuestion(_, _, sources), answers), Some(qLabel)) <- qaPairs.zip(labels)
       } yield {
         val valAnswerSpans = answers.flatMap(_.getAnswer).map(_.spans)
         if(valAnswerSpans.size == 3) {
           shouldIncludeSentence = true
           sentenceSB.append("\t")
           sentenceSB.append(verbIndex.toString + "\t")
-          sentenceSB.append(sourceId + "\t")
+          sentenceSB.append(sources.mkString(";") + "\t")
           sentenceSB.append(renderLabel(qLabel) + "\t")
           sentenceSB.append(
             valAnswerSpans.map { spans =>
@@ -186,7 +186,7 @@ object DataIO extends LazyLogging {
               sentenceSB.append(wqa.question + "\t") // question string written by worker
               sentenceSB.append(
                 ((Answer(wqa.answers)) :: valResponses.map(_._2)).map { valAnswer =>
-                  QASRLValidationAnswer.render(sentenceTokens, valAnswer, genAssignment.response)
+                  QASRLValidationAnswer.render(sentenceTokens, valAnswer)
                 }.mkString("\t")
               )
               sentenceSB.append("\n")

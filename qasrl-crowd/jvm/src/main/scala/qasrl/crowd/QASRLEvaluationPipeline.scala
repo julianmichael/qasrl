@@ -41,6 +41,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   val allPrompts: Vector[QASRLEvaluationPrompt[SID]], // IDs of sentences to annotate
+  val numValidationsForPrompt: QASRLEvaluationPrompt[SID] => Int,
   frozenEvaluationHITTypeId: Option[String] = None,
   validationAgreementDisqualTypeLabel: Option[String] = None)(
   implicit val config: TaskConfig,
@@ -186,8 +187,9 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   lazy val valManager: ActorRef = actorSystem.actorOf(
     Props {
       valManagerPeek = new QASRLEvaluationHITManager(
-        valHelper,
         valAgrDisqualTypeId,
+        valHelper,
+        numValidationsForPrompt,
         if(config.isProduction) 100 else 3,
         allPrompts.iterator)
       valManagerPeek
@@ -261,17 +263,16 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
 
   def renderValidation(info: HITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]]) = {
     val sentence = info.hit.prompt.id.tokens
-    val genWorkerString = info.hit.prompt.sourceId
     Text.render(sentence) + "\n" +
-      info.hit.prompt.qaPairs.zip(info.assignments.map(_.response).transpose).map {
-        case (VerbQA(verbIndex, question, answers), validationAnswers) =>
-          val answerString = answers.map(s => Text.renderSpan(sentence, (s.begin to s.end).toSet)).mkString(" / ")
-          val validationRenderings = validationAnswers.map(QASRLValidationAnswer.render(sentence, _, info.hit.prompt.qaPairs))
+      info.hit.prompt.sourcedQuestions.zip(info.assignments.map(_.response).transpose).map {
+        case (SourcedQuestion(verbIndex, question, sources), validationAnswers) =>
+          val genSourceString = sources.mkString(";").take(20)
+          val validationRenderings = validationAnswers.map(QASRLValidationAnswer.render(sentence, _))
           val allValidationsString = validationRenderings.toList match {
             case Nil => ""
             case head :: tail => f"$head%20s(${tail.mkString("; ")}%s)"
           }
-          f"$genWorkerString%-20s $question%-35s --> $answerString%20s | $allValidationsString"
+          f"$genSourceString%-20s $question%-35s --> $allValidationsString"
       }.mkString("\n") + "\n"
   }
 
@@ -289,7 +290,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     infosForWorker(workerId)
       .sortBy { hi =>
       if(hi.assignments.size <= 1) Int.MinValue else {
-        val totalQAPairs = hi.hit.prompt.qaPairs.size.toDouble
+        val totalQAPairs = hi.hit.prompt.sourcedQuestions.size.toDouble
         val agreedQAPairs = hi.assignments.head.response
           .zip(hi.assignments.tail.map(a => a.response.map(a.workerId -> _)).transpose)
           .map { case (givenAnswer, refPairs) =>

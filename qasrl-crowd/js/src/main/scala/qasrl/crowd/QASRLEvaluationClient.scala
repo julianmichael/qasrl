@@ -54,7 +54,7 @@ class QASRLEvaluationClient[SID : Writer : Reader](
 
   import MultiContigSpanHighlightableSentenceComponent._
 
-  lazy val questions = prompt.qaPairs.map(_.question)
+  lazy val questions = prompt.sourcedQuestions.map(_.question)
 
   @Lenses case class State(
     curQuestion: Int,
@@ -188,13 +188,13 @@ class QASRLEvaluationClient[SID : Writer : Reader](
                   enableSpanOverlap = true,
                   update = updateCurrentAnswers, render = {
                     case (hs @ SpanHighlightingState(spans, status), SpanHighlightingContext(_, hover, touch, cancelHighlight)) =>
-                      val curVerbIndex = prompt.qaPairs(curQuestion).verbIndex
+                      val curVerbIndex = prompt.sourcedQuestions(curQuestion).verbIndex
                       val inProgressAnswerOpt = SpanHighlightingStatus.highlighting.getOption(status).map {
                         case Highlighting(_, anchor, endpoint) => Span(anchor, endpoint)
                       }
                       val curAnswers = spans(curQuestion)
                       val otherAnswers = (spans - curQuestion).values.flatten
-                      val highlightedAnswers = prompt.qaPairs.indices.map(i =>
+                      val highlightedAnswers = prompt.sourcedQuestions.indices.map(i =>
                         i -> Answer(spans(i))
                       ).toMap
 
@@ -217,7 +217,8 @@ class QASRLEvaluationClient[SID : Writer : Reader](
                                 Styles.bolded,
                                 """Proportion of questions you marked invalid: """,
                                 <.span(
-                                  if(summary.proportionInvalid < 0.15 || summary.proportionInvalid > 0.3) {
+                                  if(summary.proportionInvalid < settings.invalidProportionEstimateLowerBound ||
+                                       summary.proportionInvalid > settings.invalidProportionEstimateUpperBound) {
                                     Styles.badRed
                                   } else {
                                     Styles.goodGreen
@@ -226,7 +227,9 @@ class QASRLEvaluationClient[SID : Writer : Reader](
                                 ),
                                 "."
                               ),
-                              f""" This should generally be between 15%% and 30%%. """,
+                              s""" This should generally be between
+                                   ${(settings.invalidProportionEstimateLowerBound * 100).toInt}% and
+                                   ${(settings.invalidProportionEstimateUpperBound * 100).toInt}%.""",
                               (if(summary.proportionInvalid < 0.15) " Please be harsher on bad questions. "
                                else "")
                             ).when(!summary.proportionInvalid.isNaN),
