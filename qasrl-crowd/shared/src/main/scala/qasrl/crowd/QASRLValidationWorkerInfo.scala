@@ -58,8 +58,7 @@ case class QASRLValidationWorkerInfo(
     .size > 11
 
   def wasEverLikelySpamming = comparisons.sliding(15)
-    .map(group => group.filter(c => c.thisResponse.isInvalid && !c.isAgreement).size > 11)
-    .exists(identity)
+    .exists(group => group.filter(c => c.thisResponse.isInvalid && !c.isAgreement).size > 11)
 
   def proportionInvalid = numInvalids.toDouble / (numAnswerSpans + numInvalids)
 
