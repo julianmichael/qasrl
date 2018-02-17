@@ -54,15 +54,12 @@ case class QASRLValidationWorkerInfo(
   // def averageNumberOfSpans = comparisons.flatMap(_.thisResponse.getAnswer).map(_.spans.size).meanOpt.getOrElse(-1.0)
 
   def isLikelySpamming = comparisons.take(15)
-    .filter(c => c.thisResponse.isInvalid && c.otherResponses.exists(_._2.isAnswer))
-    .size > 8
+    .filter(c => c.thisResponse.isInvalid && !c.isAgreement)
+    .size > 11
 
   def wasEverLikelySpamming = comparisons.sliding(15)
-    .map(group =>
-    group
-      .filter(c => c.thisResponse.isInvalid && c.otherResponses.exists(_._2.isAnswer))
-      .size > 8
-  ).exists(identity)
+    .map(group => group.filter(c => c.thisResponse.isInvalid && !c.isAgreement).size > 11)
+    .exists(identity)
 
   def proportionInvalid = numInvalids.toDouble / (numAnswerSpans + numInvalids)
 
