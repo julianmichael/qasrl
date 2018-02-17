@@ -40,15 +40,17 @@ import scala.collection.JavaConverters._
 import com.typesafe.scalalogging.StrictLogging
 
 class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
+  val settings: QASRLEvaluationSettings,
   val allPrompts: Vector[QASRLEvaluationPrompt[SID]], // IDs of sentences to annotate
   val numValidationsForPrompt: QASRLEvaluationPrompt[SID] => Int,
   frozenEvaluationHITTypeId: Option[String] = None,
   validationAgreementDisqualTypeLabel: Option[String] = None)(
   implicit val config: TaskConfig,
   val annotationDataService: AnnotationDataService,
-  val settings: QASRLEvaluationSettings,
   val inflections: Inflections
 ) extends StrictLogging {
+
+  implicit val impSettings = settings
 
   import config.hitDataService
 
