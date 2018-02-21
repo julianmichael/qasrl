@@ -60,7 +60,7 @@ object SlotBasedLabel {
 
   def fromRenderedString[A](readVerb: LowerCaseString => A, sep: String)(str: String) = Try {
     val fields = str.split(sep)
-    def readField(i: Int) = if(fields(i) == "_") None else Some(fields(i).lowerCase)
+    def readField(i: Int) = if(fields(i) == "_" || fields(i).isEmpty) None else Some(fields(i).lowerCase)
     val (verbPrefix, verb) = {
       val verbWords = fields(3).split(" ").toList.map(_.lowerCase)
       (verbWords.init, readVerb(verbWords.last))
