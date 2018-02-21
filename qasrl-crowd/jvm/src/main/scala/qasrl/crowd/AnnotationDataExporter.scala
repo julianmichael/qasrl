@@ -63,7 +63,9 @@ class AnnotationDataExporter[SID : HasTokens](
             val questionSlotLabelOpts = SlotBasedLabel.getVerbTenseAbstractedSlotsForQuestion(
               sentenceTokens, verbInflectedForms, questionStrings
             )
-            val answerSets = qaTuples.map(_._2.toSet)
+            val answerSets = qaTuples.map { case (VerbQA(_, _, genSpans), valAnswers) =>
+                valAnswers.toSet + AnswerLabel(workerAnonymizationMapping(genAssignment.workerId), Answer(genSpans))
+            }
             questionStrings.zip(questionSlotLabelOpts).collect {
               case (qString, None) => logger.warn(s"Unprocessable question: $qString")
             }

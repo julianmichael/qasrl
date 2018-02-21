@@ -43,7 +43,8 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   val allPrompts: Vector[QASRLEvaluationPrompt[SID]], // IDs of sentences to annotate
   val numValidationsForPrompt: QASRLEvaluationPrompt[SID] => Int,
   frozenEvaluationHITTypeId: Option[String] = None,
-  validationAgreementDisqualTypeLabel: Option[String] = None)(
+  validationAgreementDisqualTypeLabel: Option[String] = None,
+  alternativePromptReaderOpt: Option[Reader[QASRLEvaluationPrompt[SID]]] = None)(
   implicit val config: TaskConfig,
   val annotationDataService: AnnotationDataService,
   val settings: QASRLEvaluationSettings,
@@ -243,7 +244,14 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   // for use while it's running. Ideally instead of having to futz around at the console calling these functions,
   // in the future you could have a nice dashboard UI that will help you examine common sources of issues
 
-  def allInfos = hitDataService.getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](valTaskSpec.hitTypeId).get
+  def allInfos = alternativePromptReaderOpt match {
+    case None =>
+      hitDataService.getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](valTaskSpec.hitTypeId).get
+    case Some(altReader) =>
+      hitDataService.getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](
+        valTaskSpec.hitTypeId
+      )(altReader, implicitly[Reader[List[QASRLValidationAnswer]]]).get
+  }
 
   def latestInfos(n: Int = 5) = allInfos
     .filter(_.assignments.nonEmpty)
