@@ -8,7 +8,9 @@ case class QASRLValidationResponseComparison(
   thisResponse: QASRLValidationAnswer,
   otherResponses: List[(String, QASRLValidationAnswer)]
 ) {
-  def isAgreement = (
+  def isAgreement = if(otherResponses.size == 1) {
+    otherResponses.head._2.agreesWith(thisResponse)
+  } else (
     // size of set of agreeing answers...
     otherResponses.map(_._2.agreesWith(thisResponse)).filter(identity).size + 1.0
   ) >= ((otherResponses.size + 1) / 2.0) // is a majority (or tie)
@@ -46,7 +48,8 @@ case class QASRLValidationWorkerInfo(
         )
       )
 
-      (agreements.filter(identity).size + 1.0) > ((agreements.size + 1) / 2.0)
+      if(agreements.size == 1) agreements.head
+      else (agreements.filter(identity).size + 1.0) >= ((agreements.size + 1) / 2.0)
     }
     (List.fill(numBonusAgreements)(true) ++ spanAgreements).proportion(identity)
   }
