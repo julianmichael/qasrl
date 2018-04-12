@@ -228,43 +228,56 @@ class QASRLValidationHITManager[SID : Reader : Writer](
       accuracyStatsActor ! QASRLValidationResult(hit.prompt, assignment.workerId, assignment.response)
     }
 
-    // TODO NEW VERSION
+    // NOTE: stopgap measure to probably get quality control working again.
+    // Haven't tested this to be sure... but... probably works?
+    allWorkerInfo = allWorkerInfo.updated(workerId, newWorkerInfo)
+    val prevAssignments = promptToAssignments.get(hit.prompt).getOrElse(Nil)
+    val finishedAssignments = assignment :: prevAssignments
+    promptToAssignments = promptToAssignments.updated(hit.prompt, finishedAssignments)
+    if(finishedAssignments.size == numAssignmentsForPrompt(hit.prompt)) {
+      allWorkerInfo = QASRLEvaluationHITManager.updateStatsWithAllComparisons(
+        finishedAssignments, blockedValidators)(allWorkerInfo)
+    }
+    finishedAssignments.map(a => allWorkerInfo(a.workerId)).foreach(assessQualification)
+
+    // XXX: old version of quality control logic. needs update to use new QASRLValidationResponseComparison.
     // do comparisons with other workers
-  //   promptToAssignments.get(hit.prompt).getOrElse(Nil).foreach { otherAssignment =>
+    // promptToAssignments.get(hit.prompt).getOrElse(Nil).foreach { otherAssignment =>
 
-  //     val otherWorkerId = otherAssignment.workerId
+    //   val otherWorkerId = otherAssignment.workerId
 
-  //     // update this worker's stats if the other isn't blocked
-  //     if(!blockedValidators.contains(otherWorkerId)) {
-  //       val comparisons = (
-  //         assignment.response,
-  //         otherAssignment.response,
-  //         List.fill(otherAssignment.response.size)(otherAssignment.workerId))
-  //         .zipped
-  //         .map(QASRLValidationResponseComparison(_, _, _))
-  //       // update current worker with comparison
-  //       newWorkerInfo = newWorkerInfo.addComparisons(comparisons)
-  //     }
+    //   // update this worker's stats if the other isn't blocked
+    //   if(!blockedValidators.contains(otherWorkerId)) {
+    //     val comparisons = (
+    //       assignment.response,
+    //       otherAssignment.response,
+    //       List.fill(otherAssignment.response.size)(otherAssignment.workerId))
+    //       .zipped
+    //       .map(QASRLValidationResponseComparison(_, _, _))
+    //     // update current worker with comparison
+    //     newWorkerInfo = newWorkerInfo.addComparisons(comparisons)
+    //   }
 
-  //     // update the other worker's stats if this one isn't blocked
-  //     if(!blockedValidators.contains(assignment.workerId)) {
-  //       val reverseComparisons = (
-  //         otherAssignment.response,
-  //         assignment.response,
-  //         List.fill(assignment.response.size)(assignment.workerId))
-  //         .zipped
-  //         .map(QASRLValidationResponseComparison(_, _, _))
-  //       // update the other one and put back in data structure (blocking if necessary)
-  //       val otherWorkerInfo = allWorkerInfo(otherWorkerId).addComparisons(reverseComparisons)
-  //       assessQualification(otherWorkerInfo)
-  //       allWorkerInfo = allWorkerInfo.updated(otherWorkerId, otherWorkerInfo)
-  //     }
-  //   }
-  //   // now blocking the current worker if necessary before adding everything in
-  //   assessQualification(newWorkerInfo)
-  //   allWorkerInfo = allWorkerInfo.updated(workerId, newWorkerInfo)
-  //   promptToAssignments = promptToAssignments.updated(
-  //     hit.prompt,
-  //     assignment :: promptToAssignments.get(hit.prompt).getOrElse(Nil))
+    //   // update the other worker's stats if this one isn't blocked
+    //   if(!blockedValidators.contains(assignment.workerId)) {
+    //     val reverseComparisons = (
+    //       otherAssignment.response,
+    //       assignment.response,
+    //       List.fill(assignment.response.size)(assignment.workerId))
+    //       .zipped
+    //       .map(QASRLValidationResponseComparison(_, _, _))
+    //     // update the other one and put back in data structure (blocking if necessary)
+    //     val otherWorkerInfo = allWorkerInfo(otherWorkerId).addComparisons(reverseComparisons)
+    //     assessQualification(otherWorkerInfo)
+    //     allWorkerInfo = allWorkerInfo.updated(otherWorkerId, otherWorkerInfo)
+    //   }
+    // }
+
+    // now blocking the current worker if necessary before adding everything in
+    // assessQualification(newWorkerInfo)
+    // allWorkerInfo = allWorkerInfo.updated(workerId, newWorkerInfo)
+    // promptToAssignments = promptToAssignments.updated(
+    //   hit.prompt,
+    //   assignment :: promptToAssignments.get(hit.prompt).getOrElse(Nil))
   }
 }
