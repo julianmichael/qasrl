@@ -9,6 +9,7 @@ import nlpdata.util.HasTokens.ops._
 import nlpdata.util.LowerCaseStrings._
 
 import scala.util.Random
+import scala.util.{Try, Success, Failure}
 
 import com.typesafe.scalalogging.StrictLogging
 
@@ -32,44 +33,63 @@ class EvaluationDataExporter[SID : HasTokens](
   def dataset(
     sentenceIdToString: SID => String,
     workerAnonymizationMapping: String => String
-  ) = QASRLDataset(
-    infos.groupBy(_.hit.prompt.id).map { case (id, infos) =>
+  ) = QASRLDatasetNew.QASRLDataset(
+    infos.groupBy(_.hit.prompt.id).map { case (id, infosForSentence) =>
       val sentenceIdString = sentenceIdToString(id)
-      sentenceIdString -> {
-        val sentenceTokens = id.tokens
-        val qaLabelLists = for {
-          HITInfo(hit, assignments) <- infos
-          (verbIndex, qaTuples) <- hit.prompt.sourcedQuestions.zip(
-            assignments.map(
-              a => a.response.map(AnswerLabel(workerAnonymizationMapping(a.workerId) , _))
-            ).transpose
-          ).groupBy(_._1.verbIndex)
-          verbInflectedForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase)
-        } yield {
-          val questionStrings = qaTuples
-            .map(_._1.question)
-            .map(_.replaceAll("\\s+", " "))
-          val questionSourceSets = qaTuples
-            .map(_._1.sources)
-          val questionSlotLabelOpts = SlotBasedLabel.getVerbTenseAbstractedSlotsForQuestion(
-            sentenceTokens, verbInflectedForms, questionStrings
-          )
-          val answerSets = qaTuples.map(_._2.toSet)
-          questionStrings.zip(questionSlotLabelOpts).collect {
-            case (qString, None) => logger.warn(s"Unprocessable question: $qString")
-          }
+      val sentenceTokens = id.tokens
+      val verbIndices = infosForSentence.flatMap(_.hit.prompt.sourcedQuestions.map(_.verbIndex)).toSet
+      val partialVerbEntries = for {
+        HITInfo(hit, assignments) <- infosForSentence
+        (verbIndex, qaTuples) <- hit.prompt.sourcedQuestions.zip(
+          assignments.map(
+            a => a.response.map(QASRLDatasetNew.AnswerLabel(workerAnonymizationMapping(a.workerId) , _))
+          ).transpose
+        ).groupBy(_._1.verbIndex)
+        verbInflectedForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase)
+      } yield {
+        val questionStrings = qaTuples
+          .map(_._1.question)
+          .map(_.replaceAll("\\s+", " "))
+        val questionSourceSets = qaTuples
+          .map(_._1.sources)
+        val questionSlotLabelOpts = SlotBasedLabel.getVerbTenseAbstractedSlotsForQuestion(
+          sentenceTokens, verbInflectedForms, questionStrings
+        )
+        val answerSets = qaTuples.map(_._2.toSet)
+        questionStrings.zip(questionSlotLabelOpts).collect {
+          case (qString, None) => logger.warn(s"Unprocessable question: $qString")
+        }
 
+        QASRLDatasetNew.QASRLVerbEntry(
+          verbIndex,
+          verbInflectedForms,
           (questionStrings zip questionSourceSets zip questionSlotLabelOpts zip answerSets).collect {
             case (((questionString, questionSources), Some(questionSlots)), answers) =>
-              QASRLLabel(
-                QuestionLabel(
-                  questionSources, verbIndex, verbInflectedForms,
-                  questionString, questionSlots),
+              questionString.toLowerCase.capitalize -> QASRLDatasetNew.QuestionLabel(
+                questionString.toLowerCase.capitalize,
+                questionSources,
+                questionSlots,
                 answers
               )
+          }.toMap
+        )
+      }
+      sentenceIdString -> {
+        QASRLDatasetNew.QASRLSentence(
+          sentenceIdString,
+          sentenceTokens,
+          partialVerbEntries.groupBy(_.verbIndex).transform { case (_, verbEntries) =>
+            verbEntries.reduce(
+              (e1, e2) => e1.combineWithLike(e2) match {
+                case Success(e) => e
+                case Failure(t) =>
+                  System.err.println(s"Sentence: $sentenceIdString")
+                  System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
+                  System.err.println(t.getMessage)
+                  e1
+              })
           }
-        }
-        QASRLSentenceEntry(sentenceIdString, sentenceTokens, qaLabelLists.flatten)
+        )
       }
     }
   )
