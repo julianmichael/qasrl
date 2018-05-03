@@ -45,7 +45,7 @@ case class SlotBasedLabel[A](
     List(wh), aux.toList, subj.toList,
     verbPrefix, List(renderVerb(verb)),
     obj.toList, prep.toList, obj2.toList
-  ).flatten
+  ).flatten.filter(_.toString.nonEmpty)
   def renderQuestionString(renderVerb: A => LowerCaseString): String =
     Text.render(slotTokens(renderVerb).map(_.toString)).capitalize + "?"
 

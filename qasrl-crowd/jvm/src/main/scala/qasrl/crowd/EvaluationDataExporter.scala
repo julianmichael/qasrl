@@ -1,5 +1,7 @@
 package qasrl.crowd
 
+import qasrl.TemplateStateMachine
+import qasrl.QuestionProcessor
 import qasrl.labeling.SlotBasedLabel
 
 import spacro.HITInfo
@@ -30,10 +32,11 @@ class EvaluationDataExporter[SID : HasTokens](
     }.toMap
   }
 
+  import qasrl.data._
   def dataset(
     sentenceIdToString: SID => String,
     workerAnonymizationMapping: String => String
-  ) = QASRLDatasetNew.QASRLDataset(
+  ) = Dataset(
     infos.groupBy(_.hit.prompt.id).map { case (id, infosForSentence) =>
       val sentenceIdString = sentenceIdToString(id)
       val sentenceTokens = id.tokens
@@ -42,7 +45,17 @@ class EvaluationDataExporter[SID : HasTokens](
         HITInfo(hit, assignments) <- infosForSentence
         (verbIndex, qaTuples) <- hit.prompt.sourcedQuestions.zip(
           assignments.map(
-            a => a.response.map(QASRLDatasetNew.AnswerLabel(workerAnonymizationMapping(a.workerId) , _))
+            a => a.response.map(valAnswer =>
+              AnswerLabel(
+                workerAnonymizationMapping(a.workerId),
+                valAnswer match {
+                  case qasrl.crowd.InvalidQuestion => qasrl.data.InvalidQuestion
+                  case qasrl.crowd.Answer(spans) => Answer(
+                    spans.map(s => AnswerSpan(s.begin, s.end + 1)).toSet
+                  )
+                }
+              )
+            )
           ).transpose
         ).groupBy(_._1.verbIndex)
         verbInflectedForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase)
@@ -60,32 +73,43 @@ class EvaluationDataExporter[SID : HasTokens](
           case (qString, None) => logger.warn(s"Unprocessable question: $qString")
         }
 
-        QASRLDatasetNew.QASRLVerbEntry(
+        VerbEntry(
           verbIndex,
           verbInflectedForms,
           (questionStrings zip questionSourceSets zip questionSlotLabelOpts zip answerSets).collect {
-            case (((questionString, questionSources), Some(questionSlots)), answers) =>
-              questionString.toLowerCase.capitalize -> QASRLDatasetNew.QuestionLabel(
-                questionString.toLowerCase.capitalize,
-                questionSources,
-                questionSlots,
-                answers
+            case (((questionStringRaw, questionSources), Some(questionSlots)), answers) =>
+              val questionString = questionStringRaw.toLowerCase.capitalize
+              val questionTokensIsh = questionString.init.split(" ").toVector.map(_.lowerCase)
+              val qPreps = questionTokensIsh.filter(TemplateStateMachine.allPrepositions.contains).toSet
+              val qPrepBigrams = questionTokensIsh.sliding(2)
+                .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
+                .map(_.mkString(" ").lowerCase)
+                .toSet
+              val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms, Some(qPreps ++ qPrepBigrams))
+              val questionProcessor = new QuestionProcessor(stateMachine)
+              val frame = questionProcessor.processStringFully(questionString).right.get.toList.collect {
+                case QuestionProcessor.CompleteState(_, frame, _) => frame
+              }.head
+              questionString -> QuestionLabel(
+                questionString, questionSources,
+                answers, questionSlots,
+                frame.tense, frame.isPerfect, frame.isProgressive, frame.isNegated, frame.isPassive
               )
           }.toMap
         )
       }
       sentenceIdString -> {
-        QASRLDatasetNew.QASRLSentence(
+        Sentence(
           sentenceIdString,
           sentenceTokens,
           partialVerbEntries.groupBy(_.verbIndex).transform { case (_, verbEntries) =>
             verbEntries.reduce(
               (e1, e2) => e1.combineWithLike(e2) match {
-                case Success(e) => e
-                case Failure(t) =>
+                case Right(e) => e
+                case Left(msg) =>
                   System.err.println(s"Sentence: $sentenceIdString")
                   System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
-                  System.err.println(t.getMessage)
+                  System.err.println(msg)
                   e1
               })
           }

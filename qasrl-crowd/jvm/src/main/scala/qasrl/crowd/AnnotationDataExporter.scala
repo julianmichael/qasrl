@@ -1,5 +1,7 @@
 package qasrl.crowd
 
+import qasrl.TemplateStateMachine
+import qasrl.QuestionProcessor
 import qasrl.labeling.SlotBasedLabel
 
 import spacro.HITInfo
@@ -43,7 +45,8 @@ class AnnotationDataExporter[SID : HasTokens](
       .groupBy(_.hit.prompt.sourceAssignmentId)
       .map { case (k, v) => k -> v.flatMap(_.assignments) }
       .withDefaultValue(Nil)
-    QASRLDatasetNew.QASRLDataset(
+    import qasrl.data._
+    Dataset(
       genInfosBySentenceId.map { case (id, sentenceGenInfos) =>
         val sentenceIdString = sentenceIdToString(id)
         val sentenceTokens = id.tokens
@@ -63,7 +66,7 @@ class AnnotationDataExporter[SID : HasTokens](
           )
         }
         sentenceIdString -> {
-          QASRLDatasetNew.QASRLSentence(
+          Sentence(
             sentenceIdString,
             sentenceTokens,
             verbIndices.flatMap { verbIndex =>
@@ -75,8 +78,18 @@ class AnnotationDataExporter[SID : HasTokens](
                   genAssignment <- genAssignments
                   qaTuples = genAssignment.response.zip(
                     valAssignmentsByGenAssignmentId(genAssignment.assignmentId)
-                      .map(a => a.response.map(QASRLDatasetNew.AnswerLabel(workerAnonymizationMapping(a.workerId), _)))
-                      .transpose
+                      .map(a => a.response.map(valAnswer =>
+                             AnswerLabel(
+                               workerAnonymizationMapping(a.workerId),
+                               valAnswer match {
+                                 case qasrl.crowd.InvalidQuestion => qasrl.data.InvalidQuestion
+                                 case qasrl.crowd.Answer(spans) => Answer(
+                                   spans.map(s => AnswerSpan(s.begin, s.end + 1)).toSet
+                                 )
+                               }
+                             )
+                           )
+                    ).transpose
                   )
                 } yield {
                   val questionStrings = qaTuples
@@ -86,9 +99,9 @@ class AnnotationDataExporter[SID : HasTokens](
                     sentenceTokens, verbInflectedForms, questionStrings
                   )
                   val answerSets = qaTuples.map { case (VerbQA(_, _, genSpans), valAnswers) =>
-                    valAnswers.toSet + QASRLDatasetNew.AnswerLabel(
+                    valAnswers.toSet + AnswerLabel(
                       workerAnonymizationMapping(genAssignment.workerId),
-                      Answer(genSpans)
+                      Answer(genSpans.map(s => AnswerSpan(s.begin, s.end + 1)).toSet)
                     )
                   }
                   questionStrings.zip(questionSlotLabelOpts).collect {
@@ -97,28 +110,38 @@ class AnnotationDataExporter[SID : HasTokens](
 
                   (questionStrings, questionSlotLabelOpts, answerSets).zipped.collect {
                     case (questionString, Some(questionSlots), answers) =>
-                      QASRLDatasetNew.QuestionLabel(
-                        questionString,
-                        Set(workerAnonymizationMapping(genAssignment.workerId)),
-                        questionSlots,
-                        answers
+                      val questionTokensIsh = questionString.init.split(" ").toVector.map(_.lowerCase)
+                      val qPreps = questionTokensIsh.filter(TemplateStateMachine.allPrepositions.contains).toSet
+                      val qPrepBigrams = questionTokensIsh.sliding(2)
+                        .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
+                        .map(_.mkString(" ").lowerCase)
+                        .toSet
+                      val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms, Some(qPreps ++ qPrepBigrams))
+                      val questionProcessor = new QuestionProcessor(stateMachine)
+                      val frame = questionProcessor.processStringFully(questionString).right.get.toList.collect {
+                        case QuestionProcessor.CompleteState(_, frame, _) => frame
+                      }.head
+                      QuestionLabel(
+                        questionString, Set(workerAnonymizationMapping(genAssignment.workerId)),
+                        answers, questionSlots,
+                        frame.tense, frame.isPerfect, frame.isProgressive, frame.isNegated, frame.isPassive
                       )
                   }
                 }
-                verbIndex -> QASRLDatasetNew.QASRLVerbEntry(
+                verbIndex -> VerbEntry(
                   verbIndex,
                   verbInflectedForms,
                   questionLabelLists.flatten.groupBy(_.questionString).transform { case (qString, qLabels) =>
-                    qLabels.reduce((l1: QASRLDatasetNew.QuestionLabel, l2: QASRLDatasetNew.QuestionLabel) =>
+                    qLabels.reduce((l1: QuestionLabel, l2: QuestionLabel) =>
                       l1.combineWithLike(l2) match {
-                        case Success(l) => l
-                        case Failure(t) =>
+                        case Right(l) => l
+                        case Left(msg) =>
                           System.err.println(s"Sentence: $sentenceIdString")
                           System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
                           System.err.println(
                             s"Verb: $verbIndex - " + verbInflectedForms.allForms.mkString(", ")
                           )
-                          System.err.println(t.getMessage)
+                          System.err.println(msg)
                           l1
                       }
                     )

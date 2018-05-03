@@ -1,5 +1,6 @@
 package qasrl.util
 
+import cats.Monad
 import cats.Order
 import cats.arrow.Arrow
 import cats.data.NonEmptyList
@@ -63,4 +64,11 @@ object implicits {
       F.andThen(F.lift((x: A) => (x, x)), F.split(f, g))
     }
   }
+
+  implicit class RichIorSame[A](val ior: Ior[A, A]) extends AnyVal {
+    def mergeM[M[_]: Monad](f: (A, A) => M[A]) = ior.fold(
+      Monad[M].pure, Monad[M].pure, f
+    )
+  }
+
 }
