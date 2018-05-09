@@ -76,8 +76,8 @@ class AnnotationDataExporter[SID : HasTokens](
                 val questionLabelLists = for {
                   HITInfo(genPrompt, genAssignments) <- genInfosForVerb
                   genAssignment <- genAssignments
-                  qaTuples = genAssignment.response.zip(
-                    valAssignmentsByGenAssignmentId(genAssignment.assignmentId)
+                  qaTuples = genAssignment.response.zip {
+                    val validationsTransposed = valAssignmentsByGenAssignmentId(genAssignment.assignmentId)
                       .map(a => a.response.map(valAnswer =>
                              AnswerLabel(
                                workerAnonymizationMapping(a.workerId),
@@ -90,7 +90,12 @@ class AnnotationDataExporter[SID : HasTokens](
                              )
                            )
                     ).transpose
-                  )
+                    if(validationsTransposed.nonEmpty) {
+                      validationsTransposed
+                    } else {
+                      List.fill(genAssignment.response.size)(List.empty[AnswerLabel])
+                    }
+                  }
                 } yield {
                   val questionStrings = qaTuples
                     .map(_._1.question.toLowerCase.capitalize)
