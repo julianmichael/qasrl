@@ -5,7 +5,6 @@ import qasrl.QuestionProcessor
 import qasrl.TemplateStateMachine
 import qasrl.labeling.QuestionLabelMapper
 
-import qasrl.crowd.util.CategoricalDistribution
 import qasrl.crowd.util.implicits._
 
 import cats.Foldable

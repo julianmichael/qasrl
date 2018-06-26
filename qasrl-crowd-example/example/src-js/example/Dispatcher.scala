@@ -11,11 +11,9 @@ import japgolly.scalajs.react._
 import scalacss.DevDefaults._
 import scalacss.ScalaCssReact._
 
-import scalajs.js.JSApp
-
 import upickle.default._
 
-object Dispatcher extends QASRLDispatcher[SentenceId] with JSApp {
+object Dispatcher extends QASRLDispatcher[SentenceId] {
 
   val dataToggle = VdomAttr("data-toggle")
   val dataPlacement = VdomAttr("data-placement")

@@ -1,6 +1,5 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.PosTagger
 import qasrl.crowd.util.implicits._
 
 import qasrl.labeling.SlotBasedLabel

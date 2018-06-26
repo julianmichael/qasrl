@@ -1,6 +1,5 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.PosTagger
 import qasrl.crowd.util.implicits._
 import qasrl.labeling.SlotBasedLabel
 
@@ -40,6 +39,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
   val allIds: Vector[SID], // IDs of sentences to annotate
+  val posTag: Vector[String] => Vector[Word],
   numGenerationAssignmentsForPrompt: QASRLGenerationPrompt[SID] => Int,
   annotationDataService: AnnotationDataService,
   frozenGenerationHITTypeId: Option[String] = None,
@@ -53,7 +53,7 @@ class QASRLAnnotationPipeline[SID : Reader : Writer : HasTokens](
 ) extends StrictLogging {
 
   def getKeyIndices(id: SID): Set[Int] = {
-    val posTaggedTokens = PosTagger.posTag(id.tokens)
+    val posTaggedTokens = posTag(id.tokens)
     posTaggedTokens.collect {
       case Word(index, pos, token) if PosTags.verbPosTags.contains(pos) =>
         if( // detect if "have"-verb is an auxiliary
