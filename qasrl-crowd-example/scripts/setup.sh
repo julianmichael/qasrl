@@ -10,27 +10,9 @@
 BASE=`dirname $0`/..
 pushd $BASE
 
-# initialize submodules
-git submodule update --init --recursive
-# publish local dependencies
-echo "Publishing nlpdata locally..."
-pushd lib/nlpdata
-sbt publishLocal
-popd
-echo "Publishing spacro locally..."
-pushd lib/spacro
-sbt publishLocal
-popd
-
-# if [ ! -e "datasets/ptb3/" ]
-# then
-#     echo "-WARNING- Please download the Penn Treebank and place it at datasets/ptb3 in order to run the crowdsourcing pipeline with the Penn Treebank data. Relevant projects: qasrl-crowd-example"
-#     echo "It requires an LDC license. Webpage: https://catalog.ldc.upenn.edu/ldc99t42"
-# fi
-
 if [ ! -e "datasets/wiktionary/" ]
 then
-    read -p $'Download the Wiktionary data? (relevant projects: all) [y/N]\n' answer
+    read -p $'Download the Wiktionary data? [y/N]\n' answer
     case ${answer:0:1} in
         y|Y )
             wget \

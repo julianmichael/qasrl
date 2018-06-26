@@ -8,8 +8,8 @@ val thisScalaJSVersion = "0.6.23"
 val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
-val nlpdataVersion = "0.1.0-SNAPSHOT"
-val spacroVersion = "0.1.0-SNAPSHOT"
+val nlpdataVersion = "0.1.0"
+val spacroVersion = "0.1.0"
 val qasrlVersion = "0.1.0-SNAPSHOT"
 val qasrlCrowdVersion = "0.1.0-SNAPSHOT"
 
@@ -108,9 +108,11 @@ object example extends Module {
       ivy"com.typesafe.scala-logging::scala-logging::$scalaLoggingVersion",
       ivy"org.slf4j:slf4j-api:$slf4jApiVersion", // decided to match scala-logging transitive dep
       ivy"edu.stanford.nlp:stanford-corenlp:$corenlpVersion",
-      // interp.load.ivy("edu.stanford.nlp" % "stanford-corenlp" % s"$corenlpVersion" classifier "models") // for automatically downloading pos-tagging model
+      ivy"edu.stanford.nlp:stanford-corenlp:$corenlpVersion".configure(
+        coursier.core.Attributes(`type` = "", classifier = "models")
+      ),
       ivy"ch.qos.logback:logback-classic:1.2.3"
-      )
+    )
     def resources = T.sources(
       millSourcePath / "resources",
       example.js.fastOpt().path / RelPath.up,

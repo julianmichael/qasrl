@@ -83,15 +83,7 @@ class AnnotationSetup(
     "Their assignment is to give him a reading list, which they do and which he reads, and to serve as tutors and conversation partners in all things intellectual, which also they do."
   )
   val tokenizedSentences = sentences.map(Tokenizer.tokenize)
-
-  val mockPosTag = (tokens: Vector[String]) => {
-    tokens.zipWithIndex.map { case (token, index) =>
-      nlpdata.structure.Word(token = token, index = index, pos = "VBZ")
-    }
-  }
-
-  // val posTaggedSentences = tokenizedSentences.map(PosTagger.posTag[Vector](_))
-  val posTaggedSentences = tokenizedSentences.map(mockPosTag)
+  val posTaggedSentences = tokenizedSentences.map(PosTagger.posTag[Vector](_))
 
   val allIds = (0 until 4).map(SentenceId(_)).toVector
   val trainIds = allIds.slice(0, 2)
@@ -122,8 +114,7 @@ class AnnotationSetup(
 
   lazy val experiment = new QASRLAnnotationPipeline(
     allIds,
-    // PosTagger.posTag[Vector],
-    mockPosTag,
+    PosTagger.posTag[Vector],
     numGenerationAssignmentsForPrompt,
     liveAnnotationDataService,
     frozenGenerationHITTypeId = frozenGenerationHITTypeId,

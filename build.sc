@@ -8,8 +8,8 @@ val thisScalaJSVersion = "0.6.23"
 val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
-val nlpdataVersion = "0.1.0-SNAPSHOT"
-val spacroVersion = "0.1.0-SNAPSHOT"
+val nlpdataVersion = "0.1.0"
+val spacroVersion = "0.1.0"
 
 val catsVersion = "0.9.0"
 val upickleVersion = "0.4.4"
@@ -50,11 +50,6 @@ trait CommonModule extends ScalaModule {
     "-deprecation",
     "-feature",
     "-language:higherKinds"
-  )
-
-  // TODO remove
-  def repositories = super.repositories ++ Seq(
-    MavenRepository("https://oss.sonatype.org/content/repositories/snapshots")
   )
 
   def ivyDeps = Agg(
