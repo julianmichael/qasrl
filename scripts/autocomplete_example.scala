@@ -3,23 +3,40 @@ import qasrl.QuestionProcessor
 import qasrl.Autocomplete
 // imports typeclass instances, e.g., Foldable[Vector] is used for text rendering
 import cats.implicits._
+import nlpdata.datasets.wiktionary.InflectedForms
 import nlpdata.datasets.wiktionary.WiktionaryFileSystemService
 // imports the LowerCaseString convenience type, associated ops/conversions, and the new .lowerCase extension method on String
 import nlpdata.util.LowerCaseStrings._
 import nlpdata.util.Text
+import java.nio.file.Files
 import java.nio.file.Paths
 
-// Wiktionary data contains a bunch of inflections, used for the main verb in the QA-SRL template
-val wiktionary = new WiktionaryFileSystemService(Paths.get("datasets/wiktionary"))
+val exampleSentence = "I really wanted to eat my ice cream before it melted , but I was busy presenting my poster .".split(" ").toVector
 
-val exampleSentence = "Rolls-Royce Motor Cars Inc. said it expects its U.S. sales to remain steady at about 1,200 cars in 1990 .".split(" ").toVector
+val eatInflectedForms = {
+  val wiktionaryPath = Paths.get("qasrl-crowd-example/datasets/wiktionary")
+  if(Files.exists(wiktionaryPath)) {
+    // Wiktionary data contains a bunch of inflections, used for the main verb in the QA-SRL template
+    val wiktionary = new WiktionaryFileSystemService(wiktionaryPath)
+    // Inflections object stores inflected forms for all of the verb tokens seen in exampleSentence.iterator
+    // normally you would throw all of your data into this iterator
+    val inflections = wiktionary.getInflectionsForTokens(exampleSentence.iterator)
+    // Inflected forms object holds stem, present, past, past-participle, and present-participle forms
+    inflections.getInflectedForms("eat".lowerCase).get
+  } else {
+    // if you haven't downloaded wiktionary, we'll just manually put these inflections in for the demo
+    InflectedForms(
+      stem = "eat".lowerCase,
+      present = "eats".lowerCase,
+      presentParticiple = "eating".lowerCase,
+      past = "ate".lowerCase,
+      pastParticiple = "eaten".lowerCase
+    )
+  }
+}
 
-// Inflections object stores inflected forms for all of the verb tokens seen in exampleSentence.iterator
-val inflections = wiktionary.getInflectionsForTokens(exampleSentence.iterator)
-// Inflected forms object holds stem, present, past, past-participle, and present-participle forms
-val remainInflectedForms = inflections.getInflectedForms("remain".lowerCase).get
 // State machine stores all of the logic of QA-SRL templates and connects them to / iteratively constructs their Frames (see Frame.scala)
-val stateMachine = new TemplateStateMachine(exampleSentence, remainInflectedForms)
+val stateMachine = new TemplateStateMachine(exampleSentence, eatInflectedForms)
 // Question processor provides a convenient interface for using the state machine to process a string
 val questionProcessor = new QuestionProcessor(stateMachine)
 // autocomplete provides a convenient interface for running QA-SRL autocomplete with question suggestions
