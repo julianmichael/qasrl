@@ -21,23 +21,25 @@ import monocle.macros._
   isPerfect: Boolean,
   isProgressive: Boolean,
   isPassive: Boolean,
-  isNegated: Boolean) {
+  isNegated: Boolean
+) {
 
   private[this] def modalTokens(modal: LowerCaseString) =
-    if(isNegated) {
-      if(modal.toString == "will") NonEmptyList.of("won't")
-      else if(modal.toString == "can") NonEmptyList.of("can't")
-      else if(modal.toString == "might") NonEmptyList.of("might", "not")
+    if (isNegated) {
+      if (modal.toString == "will") NonEmptyList.of("won't")
+      else if (modal.toString == "can") NonEmptyList.of("can't")
+      else if (modal.toString == "might") NonEmptyList.of("might", "not")
       else NonEmptyList.of(s"${modal}n't")
     } else {
       NonEmptyList.of(modal.toString)
     }
 
   private[this] def getForms(s: LowerCaseString) = {
-    if(verbInflectedForms.allForms.contains(s)) Some(verbInflectedForms)
-    else if(InflectedForms.beSingularForms.allForms.contains(s)) Some(InflectedForms.beSingularForms)
-    else if(InflectedForms.doForms.allForms.contains(s)) Some(InflectedForms.doForms)
-    else if(InflectedForms.haveForms.allForms.contains(s)) Some(InflectedForms.haveForms)
+    if (verbInflectedForms.allForms.contains(s)) Some(verbInflectedForms)
+    else if (InflectedForms.beSingularForms.allForms.contains(s))
+      Some(InflectedForms.beSingularForms)
+    else if (InflectedForms.doForms.allForms.contains(s)) Some(InflectedForms.doForms)
+    else if (InflectedForms.haveForms.allForms.contains(s)) Some(InflectedForms.haveForms)
     else None
   }
 
@@ -53,15 +55,16 @@ import monocle.macros._
   // should always agree with what's produced on the verb stack.
   // ideally they would share code somehow but this is easiest for now and probably works.
   def getVerbConjugation(subjectPresent: Boolean): VerbForm = {
-    if(isPassive) PastParticiple
-    else if(isProgressive) PresentParticiple
-    else if(isPerfect) PastParticiple
-    else tense match {
-      case Modal(_) => Stem
-      case _ if(isNegated || subjectPresent) => Stem
-      case PastTense => Past
-      case PresentTense => PresentSingular3rd
-    }
+    if (isPassive) PastParticiple
+    else if (isProgressive) PresentParticiple
+    else if (isPerfect) PastParticiple
+    else
+      tense match {
+        case Modal(_)                           => Stem
+        case _ if (isNegated || subjectPresent) => Stem
+        case PastTense                          => Past
+        case PresentTense                       => PresentSingular3rd
+      }
   }
 
   def getVerbStack = {
@@ -69,20 +72,22 @@ import monocle.macros._
 
     val stackState = for {
       // start with verb stem
-      _ <- (if(isPassive) modForm(PastParticiple) >> push("be") else pass)
-      _ <- (if(isProgressive) modForm(PresentParticiple) >> push("be") else pass)
-      _ <- (if(isPerfect) modForm(PastParticiple) >> push("have") else pass)
+      _               <- (if (isPassive) modForm(PastParticiple) >> push("be") else pass)
+      _               <- (if (isProgressive) modForm(PresentParticiple) >> push("be") else pass)
+      _               <- (if (isPerfect) modForm(PastParticiple) >> push("have") else pass)
       postAspectStack <- State.get[NonEmptyList[String]]
       _ <- tense match {
         case Modal(m) => pushAll(modalTokens(m))
-        case PastTense => if(isNegated) {
-          if(postAspectStack.size == 1) push("didn't")
-          else (modForm(Past) >> modTop(_ + "n't"))
-        } else modForm(Past)
-        case PresentTense => if(isNegated) {
-          if(postAspectStack.size == 1) push("doesn't")
-          else (modForm(PresentSingular3rd) >> modTop(_ + "n't"))
-        } else modForm(PresentSingular3rd)
+        case PastTense =>
+          if (isNegated) {
+            if (postAspectStack.size == 1) push("didn't")
+            else (modForm(Past) >> modTop(_ + "n't"))
+          } else modForm(Past)
+        case PresentTense =>
+          if (isNegated) {
+            if (postAspectStack.size == 1) push("doesn't")
+            else (modForm(PresentSingular3rd) >> modTop(_ + "n't"))
+          } else modForm(PresentSingular3rd)
       }
     } yield ()
 
@@ -90,13 +95,14 @@ import monocle.macros._
   }
 
   def splitVerbStackIfNecessary(verbStack: NonEmptyList[String]) = {
-    if(verbStack.size > 1) {
+    if (verbStack.size > 1) {
       verbStack
-    } else tense match {
-      case Modal(_) => verbStack // should never happen, since a modal adds another token
-      case PastTense => (modForm(Stem) >> push("did")).runS(verbStack).value
-      case PresentTense => (modForm(Stem) >> push("does")).runS(verbStack).value
-    }
+    } else
+      tense match {
+        case Modal(_)     => verbStack // should never happen, since a modal adds another token
+        case PastTense    => (modForm(Stem) >> push("did")).runS(verbStack).value
+        case PresentTense => (modForm(Stem) >> push("does")).runS(verbStack).value
+      }
   }
 
   private[this] def append(word: String): StateT[List, List[String], Unit] =
@@ -111,12 +117,12 @@ import monocle.macros._
     choose(List[Unit]())
 
   private[this] def renderNecessaryNoun(slot: ArgumentSlot.Aux[Noun]) = args.get(slot) match {
-    case None => choose(List("someone", "something")) >>= append
+    case None       => choose(List("someone", "something")) >>= append
     case Some(noun) => appendAll(noun.placeholder)
   }
 
   private[this] def renderWhNoun(slot: ArgumentSlot.Aux[Noun]) = args.get(slot) match {
-    case None => choose(List("Who", "What")) >>= append
+    case None       => choose(List("Who", "What")) >>= append
     case Some(noun) => choose(noun.wh) >>= append
   }
 
@@ -131,7 +137,7 @@ import monocle.macros._
 
   private[this] def renderAuxThroughVerb(includeSubject: Boolean) = {
     val verbStack = getVerbStack
-    if(includeSubject) {
+    if (includeSubject) {
       val splitVerbStack = splitVerbStackIfNecessary(verbStack)
       val (aux, verb) = (splitVerbStack.head, splitVerbStack.tail)
       append(aux) >> renderNecessaryNoun(Subj) >> appendAll(verb)
@@ -142,32 +148,39 @@ import monocle.macros._
     val qStateT = slot match {
       case Subj =>
         renderWhNoun(Subj) >>
-          renderAuxThroughVerb(includeSubject = false) >>
-          renderArgIfPresent(Obj) >>
-          renderArgIfPresent(Obj2)
+        renderAuxThroughVerb(includeSubject = false) >>
+        renderArgIfPresent(Obj) >>
+        renderArgIfPresent(Obj2)
       case Obj =>
         renderWhNoun(Obj) >>
-          renderAuxThroughVerb(includeSubject = true) >>
-          renderGap(Obj) >>
-          renderArgIfPresent(Obj2)
+        renderAuxThroughVerb(includeSubject = true) >>
+        renderGap(Obj) >>
+        renderArgIfPresent(Obj2)
       case Obj2 =>
         renderWhOrAbort(Obj2) >>
-          renderAuxThroughVerb(includeSubject = true) >>
-          renderArgIfPresent(Obj) >>
-          renderGap(Obj2)
+        renderAuxThroughVerb(includeSubject = true) >>
+        renderArgIfPresent(Obj) >>
+        renderGap(Obj2)
       case Adv(wh) =>
         append(wh.toString.capitalize) >>
-          renderAuxThroughVerb(includeSubject = true) >>
-          renderArgIfPresent(Obj) >>
-          renderArgIfPresent(Obj2)
+        renderAuxThroughVerb(includeSubject = true) >>
+        renderArgIfPresent(Obj) >>
+        renderArgIfPresent(Obj2)
     }
     qStateT.runS(List.empty[String]).map(_.reverse.mkString(" ") + "?")
   }
 }
 
 object Frame {
-  def empty(verbForms: InflectedForms) = Frame(
-    verbForms,
-    DependentMap.empty[ArgumentSlot.Aux, Id],
-    PastTense, false, false, false, false)
+
+  def empty(verbForms: InflectedForms) =
+    Frame(
+      verbForms,
+      DependentMap.empty[ArgumentSlot.Aux, Id],
+      PastTense,
+      false,
+      false,
+      false,
+      false
+    )
 }

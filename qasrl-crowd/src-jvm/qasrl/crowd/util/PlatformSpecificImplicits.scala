@@ -3,13 +3,14 @@ package qasrl.crowd.util
 import java.io.StringWriter
 import java.io.PrintWriter
 
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
 
 trait PlatformSpecificImplicits {
 
   implicit class RichTry[A](val t: Try[A]) {
+
     def toOptionLogging(logger: Logger): Option[A] = t match {
       case Success(a) =>
         Some(a)

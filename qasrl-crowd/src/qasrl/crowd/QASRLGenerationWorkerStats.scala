@@ -15,12 +15,14 @@ case class QASRLGenerationWorkerStats(
   numAssignmentsCompleted: Int,
   accuracyJudgments: Vector[AccuracyJudgment],
   numBonusValids: Int,
-  earnings: Double) {
+  earnings: Double
+) {
 
   def numQAPairsWritten: Int = accuracyJudgments.size
   def numQAPairsValid: Int = accuracyJudgments.filter(_.isValid).size
 
-  def accuracy = (Vector.fill(numBonusValids)(true) ++ accuracyJudgments.map(_.isValid)).proportion(identity)
+  def accuracy =
+    (Vector.fill(numBonusValids)(true) ++ accuracyJudgments.map(_.isValid)).proportion(identity)
 
   def addBonusValids(n: Int) = this.copy(
     numBonusValids = this.numBonusValids + n
@@ -44,6 +46,9 @@ case class QASRLGenerationWorkerStats(
     earnings = this.earnings + totalReward
   )
 }
+
 object QASRLGenerationWorkerStats {
-  def empty(workerId: String) = QASRLGenerationWorkerStats(workerId, 0, 0, Vector.empty[AccuracyJudgment], 0, 0.0)
+
+  def empty(workerId: String) =
+    QASRLGenerationWorkerStats(workerId, 0, 0, Vector.empty[AccuracyJudgment], 0, 0.0)
 }

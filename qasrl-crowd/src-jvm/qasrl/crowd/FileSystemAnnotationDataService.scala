@@ -2,7 +2,7 @@ package qasrl.crowd
 
 import spacro.util._
 
-import scala.util.{Try, Success}
+import scala.util.{Success, Try}
 import java.nio.file.Path
 import java.nio.file.Files
 
@@ -12,7 +12,7 @@ class FileSystemAnnotationDataService(dataPath: Path) extends AnnotationDataServ
 
   private[this] def getDataDirectoryPath = Try {
     val directory = dataPath
-    if(!Files.exists(directory)) {
+    if (!Files.exists(directory)) {
       Files.createDirectories(directory)
     }
     directory
@@ -20,15 +20,17 @@ class FileSystemAnnotationDataService(dataPath: Path) extends AnnotationDataServ
 
   private[this] def getFullFilename(name: String) = s"$name.txt"
 
-  override def saveLiveData(name: String, contents: String): Try[Unit] = for {
-    directory <- getDataDirectoryPath
-    _ <- Try(Files.write(directory.resolve(getFullFilename(name)), contents.getBytes()))
-  } yield ()
+  override def saveLiveData(name: String, contents: String): Try[Unit] =
+    for {
+      directory <- getDataDirectoryPath
+      _         <- Try(Files.write(directory.resolve(getFullFilename(name)), contents.getBytes()))
+    } yield ()
 
   import scala.collection.JavaConverters._
 
-  override def loadLiveData(name: String): Try[List[String]] = for {
-    directory <- getDataDirectoryPath
-    lines <- Try(Files.lines(directory.resolve(getFullFilename(name))).iterator.asScala.toList)
-  } yield lines
+  override def loadLiveData(name: String): Try[List[String]] =
+    for {
+      directory <- getDataDirectoryPath
+      lines     <- Try(Files.lines(directory.resolve(getFullFilename(name))).iterator.asScala.toList)
+    } yield lines
 }

@@ -7,7 +7,7 @@ import spacro.tasks._
 import spacro.util._
 
 import scala.collection.mutable
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 import upickle.default.Reader
 
@@ -24,21 +24,27 @@ import upickle.default._
 
 import com.typesafe.scalalogging.StrictLogging
 
-class QASRLValidationHITManager[SID : Reader : Writer](
+class QASRLValidationHITManager[SID: Reader: Writer](
   helper: HITManager.Helper[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]],
   valDisqualificationTypeId: String,
   accuracyStatsActor: ActorRef,
   numAssignmentsForPrompt: QASRLValidationPrompt[SID] => Int,
-  initNumHITsToKeepActive: Int)(
+  initNumHITsToKeepActive: Int
+)(
   implicit annotationDataService: AnnotationDataService,
   settings: QASRLSettings
 ) extends NumAssignmentsHITManager[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]](
-  helper, numAssignmentsForPrompt, initNumHITsToKeepActive, List.empty[QASRLValidationPrompt[SID]].iterator) {
+      helper,
+      numAssignmentsForPrompt,
+      initNumHITsToKeepActive,
+      List.empty[QASRLValidationPrompt[SID]].iterator
+    ) {
 
   override lazy val receiveAux2: PartialFunction[Any, Unit] = {
     case SaveData => save
-    case Pring => println("Validation manager pringed.")
-    case ChristenWorker(workerId, numAgreementsToAdd) => christenWorker(workerId, numAgreementsToAdd)
+    case Pring    => println("Validation manager pringed.")
+    case ChristenWorker(workerId, numAgreementsToAdd) =>
+      christenWorker(workerId, numAgreementsToAdd)
   }
 
   override def promptFinished(prompt: QASRLValidationPrompt[SID]): Unit = {
@@ -49,7 +55,7 @@ class QASRLValidationHITManager[SID : Reader : Writer](
   }
 
   override def addPrompt(prompt: QASRLValidationPrompt[SID]): Unit = {
-    if(prompt.qaPairs.nonEmpty) {
+    if (prompt.qaPairs.nonEmpty) {
       super.addPrompt(prompt)
       allPrompts = prompt :: allPrompts
       refreshHITs
@@ -69,41 +75,47 @@ class QASRLValidationHITManager[SID : Reader : Writer](
   val validationPromptsFilename = "validationPrompts"
 
   private[this] var allPrompts = {
-    val prompts = annotationDataService.loadLiveData(validationPromptsFilename)
+    val prompts = annotationDataService
+      .loadLiveData(validationPromptsFilename)
       .toOption
-      .fold(List.empty[QASRLValidationPrompt[SID]])(lines => read[List[QASRLValidationPrompt[SID]]](lines.mkString))
-    prompts.reverse.foreach(p =>
-      if(p.qaPairs.nonEmpty) super.addPrompt(p) else ()
-    ) // add them back while loading
+      .fold(List.empty[QASRLValidationPrompt[SID]])(
+        lines => read[List[QASRLValidationPrompt[SID]]](lines.mkString)
+      )
+    prompts.reverse.foreach(p => if (p.qaPairs.nonEmpty) super.addPrompt(p) else ()) // add them back while loading
     prompts
   }
 
   val workerInfoFilename = "validationWorkerInfo"
 
   var allWorkerInfo = {
-    annotationDataService.loadLiveData(workerInfoFilename)
+    annotationDataService
+      .loadLiveData(workerInfoFilename)
       .map(_.mkString)
       .map(read[Map[String, QASRLValidationWorkerInfo]])
-      .toOption.getOrElse {
-      Map.empty[String, QASRLValidationWorkerInfo]
-    }
+      .toOption
+      .getOrElse {
+        Map.empty[String, QASRLValidationWorkerInfo]
+      }
   }
 
   val promptToAssignmentsFilename = "promptToAssignments"
 
   private[this] var promptToAssignments = {
-    annotationDataService.loadLiveData(promptToAssignmentsFilename)
+    annotationDataService
+      .loadLiveData(promptToAssignmentsFilename)
       .map(_.mkString)
       .map(read[Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]])
-      .toOption.getOrElse {
-      Map.empty[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]
-    }
+      .toOption
+      .getOrElse {
+        Map.empty[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]
+      }
   }
 
   val feedbackFilename = "valFeedback"
 
   var feedbacks =
-    annotationDataService.loadLiveData(feedbackFilename)
+    annotationDataService
+      .loadLiveData(feedbackFilename)
       .map(_.mkString)
       .map(read[List[Assignment[List[QASRLValidationAnswer]]]])
       .toOption
@@ -112,7 +124,8 @@ class QASRLValidationHITManager[SID : Reader : Writer](
   val blockedValidatorsFilename = "blockedValidators"
 
   var blockedValidators =
-    annotationDataService.loadLiveData(blockedValidatorsFilename)
+    annotationDataService
+      .loadLiveData(blockedValidatorsFilename)
       .map(_.mkString)
       .map(read[Set[String]])
       .toOption
@@ -121,68 +134,81 @@ class QASRLValidationHITManager[SID : Reader : Writer](
   private[this] def save = {
     annotationDataService.saveLiveData(
       workerInfoFilename,
-      write[Map[String, QASRLValidationWorkerInfo]](allWorkerInfo))
+      write[Map[String, QASRLValidationWorkerInfo]](allWorkerInfo)
+    )
     annotationDataService.saveLiveData(
       promptToAssignmentsFilename,
-      write[Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]](promptToAssignments))
+      write[Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]](
+        promptToAssignments
+      )
+    )
     annotationDataService.saveLiveData(
       validationPromptsFilename,
-      write[List[QASRLValidationPrompt[SID]]](allPrompts))
+      write[List[QASRLValidationPrompt[SID]]](allPrompts)
+    )
     annotationDataService.saveLiveData(
       feedbackFilename,
-      write[List[Assignment[List[QASRLValidationAnswer]]]](feedbacks))
+      write[List[Assignment[List[QASRLValidationAnswer]]]](feedbacks)
+    )
     annotationDataService.saveLiveData(
       blockedValidatorsFilename,
-      write[Set[String]](blockedValidators))
+      write[Set[String]](blockedValidators)
+    )
     logger.info("Validation data saved.")
   }
 
   import scala.collection.JavaConverters._
 
   def assessQualification(worker: QASRLValidationWorkerInfo): Unit = {
-    if(worker.isLikelySpamming) blockWorker(worker.workerId)
-    else Try {
-      val workerIsDisqualified = helper.config.service
-        .listAllWorkersWithQualificationType(valDisqualificationTypeId)
-        .contains(worker.workerId)
+    if (worker.isLikelySpamming) blockWorker(worker.workerId)
+    else
+      Try {
+        val workerIsDisqualified = helper.config.service
+          .listAllWorkersWithQualificationType(valDisqualificationTypeId)
+          .contains(worker.workerId)
 
-      val workerShouldBeDisqualified = !worker.agreement.isNaN &&
+        val workerShouldBeDisqualified = !worker.agreement.isNaN &&
         worker.agreement < settings.validationAgreementBlockingThreshold &&
         worker.numAssignmentsCompleted > settings.validationAgreementGracePeriod
 
-      if(workerIsDisqualified && !workerShouldBeDisqualified) {
-        helper.config.service.disassociateQualificationFromWorker(
-          new DisassociateQualificationFromWorkerRequest()
-            .withQualificationTypeId(valDisqualificationTypeId)
-            .withWorkerId(worker.workerId)
-            .withReason("Agreement dropped too low on the question answering task."))
-      } else if(!workerIsDisqualified && workerShouldBeDisqualified) {
-        helper.config.service.associateQualificationWithWorker(
-          new AssociateQualificationWithWorkerRequest()
-            .withQualificationTypeId(valDisqualificationTypeId)
-            .withWorkerId(worker.workerId)
-            .withIntegerValue(1)
-            .withSendNotification(true))
+        if (workerIsDisqualified && !workerShouldBeDisqualified) {
+          helper.config.service.disassociateQualificationFromWorker(
+            new DisassociateQualificationFromWorkerRequest()
+              .withQualificationTypeId(valDisqualificationTypeId)
+              .withWorkerId(worker.workerId)
+              .withReason("Agreement dropped too low on the question answering task.")
+          )
+        } else if (!workerIsDisqualified && workerShouldBeDisqualified) {
+          helper.config.service.associateQualificationWithWorker(
+            new AssociateQualificationWithWorkerRequest()
+              .withQualificationTypeId(valDisqualificationTypeId)
+              .withWorkerId(worker.workerId)
+              .withIntegerValue(1)
+              .withSendNotification(true)
+          )
+        }
       }
-    }
   }
 
   def blockWorker(workerId: String) = {
-    if(!blockedValidators.contains(workerId)) {
+    if (!blockedValidators.contains(workerId)) {
       helper.config.service.createWorkerBlock(
         new CreateWorkerBlockRequest()
           .withWorkerId(workerId)
-          .withReason("You have been blocked because you were detected spamming the question answering task. If you believe this was in error, please contact the requester.")
+          .withReason(
+            "You have been blocked because you were detected spamming the question answering task. If you believe this was in error, please contact the requester."
+          )
       )
       accuracyStatsActor ! ValidatorBlocked(workerId)
       // remove all comparisons with a blocked validator to prevent them from ruining people's stats
       blockedValidators = blockedValidators + workerId
       allWorkerInfo = allWorkerInfo.map {
         case (wid, info) =>
-          if(wid == workerId) wid -> info else {
+          if (wid == workerId) wid -> info
+          else {
             val newInfo = info.removeComparisonsWithWorker(workerId)
             // update qualifications for the worker if any comparisons were removed
-            if(info != newInfo) assessQualification(newInfo)
+            if (info != newInfo) assessQualification(newInfo)
             wid -> newInfo
           }
       }
@@ -190,9 +216,12 @@ class QASRLValidationHITManager[SID : Reader : Writer](
   }
 
   // override for more interesting review policy
-  override def reviewAssignment(hit: HIT[QASRLValidationPrompt[SID]], assignment: Assignment[List[QASRLValidationAnswer]]): Unit = {
+  override def reviewAssignment(
+    hit: HIT[QASRLValidationPrompt[SID]],
+    assignment: Assignment[List[QASRLValidationAnswer]]
+  ): Unit = {
     helper.evaluateAssignment(hit, helper.startReviewing(assignment), Approval(""))
-    if(!assignment.feedback.isEmpty) {
+    if (!assignment.feedback.isEmpty) {
       feedbacks = assignment :: feedbacks
       logger.info(s"Feedback: ${assignment.feedback}")
     }
@@ -202,30 +231,38 @@ class QASRLValidationHITManager[SID : Reader : Writer](
     // grant bonus as appropriate
     val numQuestions = hit.prompt.qaPairs.size
     val totalBonus = settings.validationBonus(numQuestions)
-    if(totalBonus > 0.0) {
+    if (totalBonus > 0.0) {
       helper.config.service.sendBonus(
         new SendBonusRequest()
           .withWorkerId(workerId)
           .withBonusAmount(f"$totalBonus%.2f")
           .withAssignmentId(assignment.assignmentId)
-          .withReason(s"Bonus of ${dollarsToCents(totalBonus)}c awarded for validating $numQuestions questions.")
+          .withReason(
+            s"Bonus of ${dollarsToCents(totalBonus)}c awarded for validating $numQuestions questions."
+          )
       )
     }
 
     var newWorkerInfo = allWorkerInfo
       .get(workerId)
       .getOrElse(QASRLValidationWorkerInfo.empty(workerId))
-      .addAssignment(assignment.response,
-                     assignment.submitTime - assignment.acceptTime,
-                     helper.taskSpec.hitType.reward + totalBonus)
+      .addAssignment(
+        assignment.response,
+        assignment.submitTime - assignment.acceptTime,
+        helper.taskSpec.hitType.reward + totalBonus
+      )
 
     // spam detection
-    if(newWorkerInfo.proportionInvalid > 0.7 && newWorkerInfo.numAssignmentsCompleted >= 8) {
+    if (newWorkerInfo.proportionInvalid > 0.7 && newWorkerInfo.numAssignmentsCompleted >= 8) {
       blockWorker(newWorkerInfo.workerId)
     }
 
-    if(!blockedValidators.contains(assignment.workerId)) {
-      accuracyStatsActor ! QASRLValidationResult(hit.prompt, assignment.workerId, assignment.response)
+    if (!blockedValidators.contains(assignment.workerId)) {
+      accuracyStatsActor ! QASRLValidationResult(
+        hit.prompt,
+        assignment.workerId,
+        assignment.response
+      )
     }
 
     // NOTE: stopgap measure to probably get quality control working again.
@@ -234,9 +271,11 @@ class QASRLValidationHITManager[SID : Reader : Writer](
     val prevAssignments = promptToAssignments.get(hit.prompt).getOrElse(Nil)
     val finishedAssignments = assignment :: prevAssignments
     promptToAssignments = promptToAssignments.updated(hit.prompt, finishedAssignments)
-    if(finishedAssignments.size == numAssignmentsForPrompt(hit.prompt)) {
+    if (finishedAssignments.size == numAssignmentsForPrompt(hit.prompt)) {
       allWorkerInfo = QASRLEvaluationHITManager.updateStatsWithAllComparisons(
-        finishedAssignments, blockedValidators)(allWorkerInfo)
+        finishedAssignments,
+        blockedValidators
+      )(allWorkerInfo)
     }
     finishedAssignments.map(a => allWorkerInfo(a.workerId)).foreach(assessQualification)
 

@@ -44,12 +44,12 @@ import upickle.default._
 class AnnotationSetup(
   val label: String = "trial",
   frozenGenerationHITTypeId: Option[String] = None,
-  frozenValidationHITTypeId: Option[String] = None)(
-  implicit config: TaskConfig) {
+  frozenValidationHITTypeId: Option[String] = None
+)(implicit config: TaskConfig) {
 
   val resourcePath = java.nio.file.Paths.get("datasets")
 
-  import java.nio.file.{Paths, Path, Files}
+  import java.nio.file.{Files, Path, Paths}
   private[this] val liveDataPath = Paths.get(s"data/example/$label/live")
   val liveAnnotationDataService = new FileSystemAnnotationDataService(liveDataPath)
 
@@ -58,7 +58,7 @@ class AnnotationSetup(
   def saveOutputFile(name: String, contents: String): Try[Unit] = Try {
     val path = staticDataPath.resolve("out").resolve(name)
     val directory = path.getParent
-    if(!Files.exists(directory)) {
+    if (!Files.exists(directory)) {
       Files.createDirectories(directory)
     }
     Files.write(path, contents.getBytes())
@@ -104,7 +104,7 @@ class AnnotationSetup(
 
   implicit lazy val inflections = {
     val tokens = for {
-      id <- allIds.iterator
+      id   <- allIds.iterator
       word <- id.tokens.iterator
     } yield word
     Wiktionary.getInflectionsForTokens(tokens)
@@ -121,7 +121,8 @@ class AnnotationSetup(
     frozenValidationHITTypeId = frozenValidationHITTypeId,
     generationAccuracyDisqualTypeLabel = None,
     generationCoverageDisqualTypeLabel = None,
-    validationAgreementDisqualTypeLabel = None)
+    validationAgreementDisqualTypeLabel = None
+  )
 
   def saveAnnotationData[A](
     filename: String,
@@ -139,7 +140,8 @@ class AnnotationSetup(
         genInfos,
         valInfos,
         labelMapper,
-        labelRenderer)
+        labelRenderer
+      )
     )
   }
 
@@ -157,7 +159,9 @@ class AnnotationSetup(
         identity,
         genInfos,
         valInfos,
-        (id: SentenceId, qa: VerbQA, responses: List[QASRLValidationAnswer]) => responses.forall(_.isAnswer))
+        (id: SentenceId, qa: VerbQA, responses: List[QASRLValidationAnswer]) =>
+          responses.forall(_.isAnswer)
+      )
     )
   }
 }

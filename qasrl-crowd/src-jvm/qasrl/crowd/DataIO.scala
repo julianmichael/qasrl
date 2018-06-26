@@ -26,19 +26,20 @@ import com.typesafe.scalalogging.LazyLogging
 @deprecated("Use JSON format instead; see JsonCodecs in QASRLDataset.scala", "qasrl-crowd 0.1")
 object DataIO extends LazyLogging {
 
-  def makeEvaluationQAPairTSV[SID : HasTokens, QuestionLabel](
+  def makeEvaluationQAPairTSV[SID: HasTokens, QuestionLabel](
     ids: List[SID],
     writeId: SID => String, // serialize sentence ID for distribution in data file
     infos: List[HITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]]],
     mapLabels: QuestionLabelMapper[String, QuestionLabel],
-    renderLabel: QuestionLabel => String)(
+    renderLabel: QuestionLabel => String
+  )(
     implicit inflections: Inflections
   ): String = {
     val infosBySentenceId = infos.groupBy(_.hit.prompt.id).withDefaultValue(Nil)
     // val genInfosBySentenceId = genInfos.groupBy(_.hit.prompt.id).withDefaultValue(Nil)
     // val valInfosByGenAssignmentId = valInfos.groupBy(_.hit.prompt.sourceAssignmentId).withDefaultValue(Nil)
     val sb = new StringBuilder
-    for(id <- ids) {
+    for (id <- ids) {
       val idString = writeId(id)
       val sentenceTokens = id.tokens
       val sentenceSB = new StringBuilder
@@ -47,53 +48,58 @@ object DataIO extends LazyLogging {
       val qaTuplesByVerbIndex = {
         val qas = for {
           HITInfo(hit, assignments) <- infosBySentenceId(id)
-          (sourcedQuestion, answers) <- hit.prompt.sourcedQuestions.zip(assignments.map(_.response).transpose)
+          (sourcedQuestion, answers) <- hit.prompt.sourcedQuestions
+            .zip(assignments.map(_.response).transpose)
         } yield (sourcedQuestion, answers)
         qas.groupBy(_._1.verbIndex)
       }
       for {
         (verbIndex, qaPairs) <- qaTuplesByVerbIndex
-        inflForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase).toList
+        inflForms            <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase).toList
         labels = mapLabels(sentenceTokens, inflForms, qaPairs.map(_._1.question))
         ((SourcedQuestion(_, _, sources), answers), Some(qLabel)) <- qaPairs.zip(labels)
       } yield {
         val valAnswerSpans = answers.flatMap(_.getAnswer).map(_.spans)
-        if(valAnswerSpans.size == 3) {
+        if (valAnswerSpans.size == 3) {
           shouldIncludeSentence = true
           sentenceSB.append("\t")
           sentenceSB.append(verbIndex.toString + "\t")
           sentenceSB.append(sources.mkString(";") + "\t")
           sentenceSB.append(renderLabel(qLabel) + "\t")
           sentenceSB.append(
-            valAnswerSpans.map { spans =>
-              spans
-                .map(span => s"${span.begin}-${span.end}")
-                .mkString(";")
-            }.mkString("\t")
+            valAnswerSpans
+              .map { spans =>
+                spans
+                  .map(span => s"${span.begin}-${span.end}")
+                  .mkString(";")
+              }
+              .mkString("\t")
           )
           sentenceSB.append("\n")
         }
       }
-      if(shouldIncludeSentence) {
+      if (shouldIncludeSentence) {
         sb.append(sentenceSB.toString)
       }
     }
     sb.toString
   }
 
-  def makeQAPairTSV[SID : HasTokens, QuestionLabel](
+  def makeQAPairTSV[SID: HasTokens, QuestionLabel](
     ids: List[SID],
     writeId: SID => String, // serialize sentence ID for distribution in data file
     genInfos: List[HITInfo[QASRLGenerationPrompt[SID], List[VerbQA]]],
     valInfos: List[HITInfo[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]]],
     mapLabels: QuestionLabelMapper[String, QuestionLabel],
-    renderLabel: QuestionLabel => String)(
+    renderLabel: QuestionLabel => String
+  )(
     implicit inflections: Inflections
   ): String = {
     val genInfosBySentenceId = genInfos.groupBy(_.hit.prompt.id).withDefaultValue(Nil)
-    val valInfosByGenAssignmentId = valInfos.groupBy(_.hit.prompt.sourceAssignmentId).withDefaultValue(Nil)
+    val valInfosByGenAssignmentId =
+      valInfos.groupBy(_.hit.prompt.sourceAssignmentId).withDefaultValue(Nil)
     val sb = new StringBuilder
-    for(id <- ids) {
+    for (id <- ids) {
       val idString = writeId(id)
       val sentenceTokens = id.tokens
       val sentenceSB = new StringBuilder
@@ -114,12 +120,14 @@ object DataIO extends LazyLogging {
       } yield {
         // pairs of (validation worker ID, validation answer)
         val valAnswerSpans = for {
-          info <- valInfosByGenAssignmentId.get(genAssignment.assignmentId).getOrElse(Nil)
+          info       <- valInfosByGenAssignmentId.get(genAssignment.assignmentId).getOrElse(Nil)
           assignment <- info.assignments
-          answer <- assignment.response(qaIndex).getAnswer
+          answer     <- assignment.response(qaIndex).getAnswer
         } yield answer.spans
-        if(valAnswerSpans.size != 2) {
-          logger.warn("Warning: don't have 2 validation answers for question. Actual number: " + valAnswerSpans.size)
+        if (valAnswerSpans.size != 2) {
+          logger.warn(
+            "Warning: don't have 2 validation answers for question. Actual number: " + valAnswerSpans.size
+          )
         } else {
           shouldIncludeSentence = true
           sentenceSB.append("\t")
@@ -127,16 +135,18 @@ object DataIO extends LazyLogging {
           sentenceSB.append(s"turk-${genAssignment.workerId}" + "\t")
           sentenceSB.append(renderLabel(qLabel) + "\t")
           sentenceSB.append(
-            (wqa.answers :: valAnswerSpans).map { spans =>
-              spans
-                .map(span => s"${span.begin}-${span.end}")
-                .mkString(";")
-            }.mkString("\t")
+            (wqa.answers :: valAnswerSpans)
+              .map { spans =>
+                spans
+                  .map(span => s"${span.begin}-${span.end}")
+                  .mkString(";")
+              }
+              .mkString("\t")
           )
           sentenceSB.append("\n")
         }
       }
-      if(shouldIncludeSentence) {
+      if (shouldIncludeSentence) {
         sb.append(sentenceSB.toString)
       }
     }
@@ -144,56 +154,68 @@ object DataIO extends LazyLogging {
   }
 
   // how much and how long must come first so we register them as question prefix
-  val whPhrases = List("how much", "how long", "who", "what", "when", "where", "why", "how").map(_.lowerCase)
+  val whPhrases =
+    List("how much", "how long", "who", "what", "when", "where", "why", "how").map(_.lowerCase)
 
-  def makeReadableQAPairTSV[SID : HasTokens](
+  def makeReadableQAPairTSV[SID: HasTokens](
     ids: List[SID],
     writeId: SID => String, // serialize sentence ID for distribution in data file
     anonymizeWorker: String => String, // anonymize worker IDs so they can't be tied back to workers on Turk
     genInfos: List[HITInfo[QASRLGenerationPrompt[SID], List[VerbQA]]],
     valInfos: List[HITInfo[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]]],
-    keepQA: (SID, VerbQA, List[QASRLValidationAnswer]) => Boolean = (
-      (_: SID, _: VerbQA, _: List[QASRLValidationAnswer]) => true)
+    keepQA: (SID, VerbQA, List[QASRLValidationAnswer]) => Boolean =
+      ((_: SID, _: VerbQA, _: List[QASRLValidationAnswer]) => true)
   ): String = {
     val genInfosBySentenceId = genInfos.groupBy(_.hit.prompt.id).withDefaultValue(Nil)
-    val valInfosByGenAssignmentId = valInfos.groupBy(_.hit.prompt.sourceAssignmentId).withDefaultValue(Nil)
+    val valInfosByGenAssignmentId =
+      valInfos.groupBy(_.hit.prompt.sourceAssignmentId).withDefaultValue(Nil)
     val sb = new StringBuilder
-    for(id <- ids) {
+    for (id <- ids) {
       val idString = writeId(id)
       val sentenceTokens = id.tokens
       val sentenceSB = new StringBuilder
       var shouldIncludeSentence = false
       sentenceSB.append(s"${idString}\t${nlpdata.util.Text.render(sentenceTokens)}\n")
       // sort by keyword group first...
-      for(HITInfo(genHIT, genAssignments) <- genInfosBySentenceId(id).sortBy(_.hit.prompt.verbIndex)) {
+      for (HITInfo(genHIT, genAssignments) <- genInfosBySentenceId(id).sortBy(
+             _.hit.prompt.verbIndex
+           )) {
         // then worker ID second, so the data will be chunked correctly according to HIT;
-        for(genAssignment <- genAssignments.sortBy(_.workerId)) {
+        for (genAssignment <- genAssignments.sortBy(_.workerId)) {
           // and these should already be ordered in terms of the target word used for a QA pair.
-          for((wqa, qaIndex) <- genAssignment.response.zipWithIndex) {
+          for ((wqa, qaIndex) <- genAssignment.response.zipWithIndex) {
             // pairs of (validation worker ID, validation answer)
-            val valResponses = valInfosByGenAssignmentId.get(genAssignment.assignmentId).getOrElse(Nil)
+            val valResponses = valInfosByGenAssignmentId
+              .get(genAssignment.assignmentId)
+              .getOrElse(Nil)
               .flatMap(_.assignments.map(a => (a.workerId, a.response(qaIndex))))
-            if(valResponses.size != 2) {
-              logger.warn("Warning: don't have 2 validation answers for question. Actual number: " + valResponses.size)
+            if (valResponses.size != 2) {
+              logger.warn(
+                "Warning: don't have 2 validation answers for question. Actual number: " + valResponses.size
+              )
             }
             val valAnswers = valResponses.map(_._2)
 
-            if(keepQA(id, wqa, valAnswers)) {
+            if (keepQA(id, wqa, valAnswers)) {
               shouldIncludeSentence = true
               sentenceSB.append(anonymizeWorker(genAssignment.workerId) + "\t") // anonymized worker ID
-              sentenceSB.append(s"${Text.normalizeToken(sentenceTokens(wqa.verbIndex))} (${wqa.verbIndex})\t")
+              sentenceSB.append(
+                s"${Text.normalizeToken(sentenceTokens(wqa.verbIndex))} (${wqa.verbIndex})\t"
+              )
               sentenceSB.append(wqa.question + "\t") // question string written by worker
               sentenceSB.append(
-                ((Answer(wqa.answers)) :: valResponses.map(_._2)).map { valAnswer =>
-                  QASRLValidationAnswer.render(sentenceTokens, valAnswer)
-                }.mkString("\t")
+                ((Answer(wqa.answers)) :: valResponses.map(_._2))
+                  .map { valAnswer =>
+                    QASRLValidationAnswer.render(sentenceTokens, valAnswer)
+                  }
+                  .mkString("\t")
               )
               sentenceSB.append("\n")
             }
           }
         }
       }
-      if(shouldIncludeSentence) {
+      if (shouldIncludeSentence) {
         sb.append(sentenceSB.toString)
       }
     }

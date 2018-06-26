@@ -41,9 +41,7 @@ object Styles extends StyleSheet.Inline {
 
   val bolded = style(fontWeight.bold)
 
-  val niceBlue = style(
-    style(fontWeight.bold),
-    color(c"rgb(50, 164, 251)"))
+  val niceBlue = style(style(fontWeight.bold), color(c"rgb(50, 164, 251)"))
 
   val uncomfortableOrange = style(
     color(c"rgb(255, 135, 0)")

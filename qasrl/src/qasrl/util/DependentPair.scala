@@ -5,6 +5,7 @@ sealed trait DependentPair[F[_], G[_]] {
   val fst: F[A]
   val snd: G[A]
 }
+
 object DependentPair {
   private[this] case class DependentPairImpl[F[_], G[_], A0](
     override val fst: F[A0],

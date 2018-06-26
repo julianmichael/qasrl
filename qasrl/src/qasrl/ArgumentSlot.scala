@@ -10,6 +10,7 @@ case class Adv(wh: LowerCaseString) extends ArgumentSlot { type Arg = Unit }
 
 object ArgumentSlot {
   type Aux[A] = ArgumentSlot { type Arg = A }
-  def allAdvSlots = List("when", "where", "why", "how", "how long", "how much").map(s => Adv(s.lowerCase))
-}
 
+  def allAdvSlots =
+    List("when", "where", "why", "how", "how long", "how much").map(s => Adv(s.lowerCase))
+}

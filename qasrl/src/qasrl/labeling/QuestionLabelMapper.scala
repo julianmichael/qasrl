@@ -15,7 +15,8 @@ case class QuestionLabelMapper[A, B](
     Vector[String], // sentence tokens
     InflectedForms, // forms of verb
     List[A] // labels
-  ) => Map[A, B]) {
+  ) => Map[A, B]
+) {
 
   def apply(
     sentenceTokens: Vector[String],
@@ -33,10 +34,7 @@ object QuestionLabelMapper {
   def liftOptionalWithContext[A, B](
     f: (Vector[String], InflectedForms, A) => Option[B]
   ): QuestionLabelMapper[A, B] = QuestionLabelMapper[A, B](
-    (sentenceTokens: Vector[String],
-     verbInflectedForms: InflectedForms,
-     labels: List[A]
-    ) => {
+    (sentenceTokens: Vector[String], verbInflectedForms: InflectedForms, labels: List[A]) => {
       labels.flatMap(a => f(sentenceTokens, verbInflectedForms, a).map(a -> _)).toMap
     }
   )
@@ -57,30 +55,28 @@ object QuestionLabelMapper {
         f: QuestionLabelMapper[B, C],
         g: QuestionLabelMapper[A, B]
       ): QuestionLabelMapper[A, C] = QuestionLabelMapper[A, C](
-        (sentenceTokens: Vector[String],
-         verbInflectedForms: InflectedForms,
-         labels: List[A]
-        ) => {
+        (sentenceTokens: Vector[String], verbInflectedForms: InflectedForms, labels: List[A]) => {
           val bMapping = g.mapping(sentenceTokens, verbInflectedForms, labels)
           val bs = labels.flatMap(bMapping.get)
           val cMapping = f.mapping(sentenceTokens, verbInflectedForms, bs)
-          bMapping.flatMap { case (a, b) =>
-            cMapping.get(b).map(a -> _)
+          bMapping.flatMap {
+            case (a, b) =>
+              cMapping.get(b).map(a -> _)
           }: Map[A, C]
         }
       )
 
       def first[A, B, C](fa: QuestionLabelMapper[A, B]): QuestionLabelMapper[(A, C), (B, C)] =
         QuestionLabelMapper[(A, C), (B, C)](
-          (sentenceTokens: Vector[String],
-           verbInflectedForms: InflectedForms,
-           labels: List[(A, C)]
+          (
+            sentenceTokens: Vector[String],
+            verbInflectedForms: InflectedForms,
+            labels: List[(A, C)]
           ) => {
             val bMapping = fa.mapping(sentenceTokens, verbInflectedForms, labels.map(_._1))
-            labels.flatMap { case (a, c) =>
-              bMapping.get(a).map(b =>
-                (a, c) -> (b, c)
-              )
+            labels.flatMap {
+              case (a, c) =>
+                bMapping.get(a).map(b => (a, c) -> (b, c))
             }.toMap: Map[(A, C), (B, C)]
           }
         )

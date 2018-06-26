@@ -38,12 +38,13 @@ import scala.collection.JavaConverters._
 
 import com.typesafe.scalalogging.StrictLogging
 
-class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
+class QASRLEvaluationPipeline[SID: Reader: Writer: HasTokens](
   val allPrompts: Vector[QASRLEvaluationPrompt[SID]], // IDs of sentences to annotate
   val numValidationsForPrompt: QASRLEvaluationPrompt[SID] => Int,
   frozenEvaluationHITTypeId: Option[String] = None,
   validationAgreementDisqualTypeLabel: Option[String] = None,
-  alternativePromptReaderOpt: Option[Reader[QASRLEvaluationPrompt[SID]]] = None)(
+  alternativePromptReaderOpt: Option[Reader[QASRLEvaluationPrompt[SID]]] = None
+)(
   implicit val config: TaskConfig,
   val annotationDataService: AnnotationDataService,
   val settings: QASRLEvaluationSettings,
@@ -53,6 +54,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   import config.hitDataService
 
   val approvalRateQualificationTypeID = "000000000000000000L0"
+
   val approvalRateRequirement = new QualificationRequirement()
     .withQualificationTypeId(approvalRateQualificationTypeID)
     .withComparator("GreaterThanOrEqualTo")
@@ -60,6 +62,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     .withRequiredToPreview(false)
 
   val localeQualificationTypeID = "00000000000000000071"
+
   val localeRequirement = new QualificationRequirement()
     .withQualificationTypeId(localeQualificationTypeID)
     .withComparator("NotEqualTo")
@@ -67,26 +70,38 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     .withRequiredToPreview(false)
 
   val valAgrDisqualTypeLabelString = validationAgreementDisqualTypeLabel.fold("")(x => s"[$x] ")
-  val valAgrDisqualTypeName = s"${valAgrDisqualTypeLabelString}Question answering agreement disqualification"
-  val valAgrDisqualType = config.service.listQualificationTypes(
-    new ListQualificationTypesRequest()
-      .withQuery(valAgrDisqualTypeName)
-      .withMustBeOwnedByCaller(true)
-      .withMustBeRequestable(false)
-      .withMaxResults(100)
-  ).getQualificationTypes.asScala.toList.find(_.getName == valAgrDisqualTypeName).getOrElse {
-    System.out.println("Generating validation disqualification type...")
-    config.service.createQualificationType(
-      new CreateQualificationTypeRequest()
-        .withName(valAgrDisqualTypeName)
-        .withKeywords("language,english,question answering")
-        .withDescription("""Agreement with other annotators on answers and validity judgments
+
+  val valAgrDisqualTypeName =
+    s"${valAgrDisqualTypeLabelString}Question answering agreement disqualification"
+
+  val valAgrDisqualType = config.service
+    .listQualificationTypes(
+      new ListQualificationTypesRequest()
+        .withQuery(valAgrDisqualTypeName)
+        .withMustBeOwnedByCaller(true)
+        .withMustBeRequestable(false)
+        .withMaxResults(100)
+    )
+    .getQualificationTypes
+    .asScala
+    .toList
+    .find(_.getName == valAgrDisqualTypeName)
+    .getOrElse {
+      System.out.println("Generating validation disqualification type...")
+      config.service
+        .createQualificationType(
+          new CreateQualificationTypeRequest()
+            .withName(valAgrDisqualTypeName)
+            .withKeywords("language,english,question answering")
+            .withDescription("""Agreement with other annotators on answers and validity judgments
           in our question answering task is too low.""".replaceAll("\\s+", " "))
-        .withQualificationTypeStatus(QualificationTypeStatus.Active)
-        .withAutoGranted(false)
-    ).getQualificationType
-  }
+            .withQualificationTypeStatus(QualificationTypeStatus.Active)
+            .withAutoGranted(false)
+        )
+        .getQualificationType
+    }
   val valAgrDisqualTypeId = valAgrDisqualType.getQualificationTypeId
+
   val valAgreementRequirement = new QualificationRequirement()
     .withQualificationTypeId(valAgrDisqualTypeId)
     .withComparator("DoesNotExist")
@@ -95,16 +110,21 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   // NOTE may need to call multiple times to cover all workers... sigh TODO pagination
   def resetAllQualificationValues = {
     def revokeAllWorkerQuals(qualTypeId: String) = {
-      val quals = config.service.listWorkersWithQualificationType(
-        new ListWorkersWithQualificationTypeRequest()
-          .withQualificationTypeId(qualTypeId)
-          .withMaxResults(100)
-      ).getQualifications.asScala.toList
-      quals.foreach(qual =>
-        config.service.disassociateQualificationFromWorker(
-          new DisassociateQualificationFromWorkerRequest()
+      val quals = config.service
+        .listWorkersWithQualificationType(
+          new ListWorkersWithQualificationTypeRequest()
             .withQualificationTypeId(qualTypeId)
-            .withWorkerId(qual.getWorkerId)
+            .withMaxResults(100)
+        )
+        .getQualifications
+        .asScala
+        .toList
+      quals.foreach(
+        qual =>
+          config.service.disassociateQualificationFromWorker(
+            new DisassociateQualificationFromWorkerRequest()
+              .withQualificationTypeId(qualTypeId)
+              .withWorkerId(qual.getWorkerId)
         )
       )
     }
@@ -118,24 +138,31 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
         rel := "stylesheet",
         href := "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css",
         attr("integrity") := "sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ",
-        attr("crossorigin") := "anonymous"))
+        attr("crossorigin") := "anonymous"
+      )
+    )
     val bodyLinks = List(
       script(
         src := "https://code.jquery.com/jquery-3.1.1.slim.min.js",
         attr("integrity") := "sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n",
-        attr("crossorigin") := "anonymous"),
+        attr("crossorigin") := "anonymous"
+      ),
       script(
         src := "https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js",
         attr("integrity") := "sha256-1A78rJEdiWTzco6qdn3igTBv9VupN3Q1ozZNTR4WE/Y=",
-        attr("crossorigin") := "anonymous"),
+        attr("crossorigin") := "anonymous"
+      ),
       script(
         src := "https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js",
         attr("integrity") := "sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb",
-        attr("crossorigin") := "anonymous"),
+        attr("crossorigin") := "anonymous"
+      ),
       script(
         src := "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js",
         attr("integrity") := "sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn",
-        attr("crossorigin") := "anonymous"))
+        attr("crossorigin") := "anonymous"
+      )
+    )
     (headLinks, bodyLinks)
   }
 
@@ -152,18 +179,21 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     reward = settings.validationReward,
     keywords = "language,english,question answering",
     qualRequirements = Array[QualificationRequirement](
-      approvalRateRequirement, localeRequirement, valAgreementRequirement
+      approvalRateRequirement,
+      localeRequirement,
+      valAgreementRequirement
     ),
     autoApprovalDelay = 2592000L, // 30 days
-    assignmentDuration = 600L)
+    assignmentDuration = 600L
+  )
 
   lazy val valAjaxService = new Service[QASRLValidationAjaxRequest[SID]] {
     override def processRequest(request: QASRLValidationAjaxRequest[SID]) = request match {
       case QASRLValidationAjaxRequest(workerIdOpt, id) =>
         val workerInfoSummaryOpt = for {
           valManagerP <- Option(valManagerPeek)
-          workerId <- workerIdOpt
-          info <- valManagerP.allWorkerInfo.get(workerId)
+          workerId    <- workerIdOpt
+          info        <- valManagerP.allWorkerInfo.get(workerId)
         } yield info.summary
 
         QASRLValidationAjaxResponse(workerInfoSummaryOpt, id.tokens)
@@ -172,28 +202,33 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
 
   lazy val sampleValPrompt = allPrompts.head
 
-  lazy val valTaskSpec = TaskSpecification.NoWebsockets[
-    QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer], QASRLValidationAjaxRequest[SID]](
-    settings.evaluationTaskKey, valHITType, valAjaxService, Vector(sampleValPrompt),
+  lazy val valTaskSpec = TaskSpecification.NoWebsockets[QASRLEvaluationPrompt[SID], List[
+    QASRLValidationAnswer
+  ], QASRLValidationAjaxRequest[SID]](
+    settings.evaluationTaskKey,
+    valHITType,
+    valAjaxService,
+    Vector(sampleValPrompt),
     taskPageHeadElements = taskPageHeadLinks,
     taskPageBodyElements = taskPageBodyLinks,
-    frozenHITTypeId = frozenEvaluationHITTypeId)
+    frozenHITTypeId = frozenEvaluationHITTypeId
+  )
 
   import config.actorSystem
 
   var valManagerPeek: QASRLEvaluationHITManager[SID] = null
 
   lazy val valHelper = new HITManager.Helper(valTaskSpec)
-  lazy val valManager: ActorRef = actorSystem.actorOf(
-    Props {
-      valManagerPeek = new QASRLEvaluationHITManager(
-        valAgrDisqualTypeId,
-        valHelper,
-        numValidationsForPrompt,
-        if(config.isProduction) 100 else 3,
-        allPrompts.iterator)
-      valManagerPeek
-    })
+  lazy val valManager: ActorRef = actorSystem.actorOf(Props {
+    valManagerPeek = new QASRLEvaluationHITManager(
+      valAgrDisqualTypeId,
+      valHelper,
+      numValidationsForPrompt,
+      if (config.isProduction) 100 else 3,
+      allPrompts.iterator
+    )
+    valManagerPeek
+  })
 
   lazy val valActor = actorSystem.actorOf(Props(new TaskManager(valHelper, valManager)))
 
@@ -201,12 +236,13 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
 
   // used to schedule data-saves
   private[this] var schedule: List[Cancellable] = Nil
+
   def startSaves(interval: FiniteDuration = 5 minutes): Unit = {
-    if(schedule.exists(_.isCancelled) || schedule.isEmpty) {
-      schedule = List(valManager).map(actor =>
-        config.actorSystem.scheduler.schedule(
-          2 seconds, interval, actor, SaveData)(
-          config.actorSystem.dispatcher, actor)
+    if (schedule.exists(_.isCancelled) || schedule.isEmpty) {
+      schedule = List(valManager).map(
+        actor =>
+          config.actorSystem.scheduler
+            .schedule(2 seconds, interval, actor, SaveData)(config.actorSystem.dispatcher, actor)
       )
     }
   }
@@ -217,25 +253,31 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   }
 
   import TaskManager.Message._
+
   def start(interval: FiniteDuration = 30 seconds) = {
     server
     startSaves()
     valActor ! Start(interval, delay = 3 seconds)
   }
+
   def stop() = {
     valActor ! Stop
     stopSaves
   }
+
   def delete() = {
     valActor ! Delete
   }
+
   def expire() = {
     valActor ! Expire
   }
+
   def update() = {
     server
     valActor ! Update
   }
+
   def save() = {
     valManager ! SaveData
   }
@@ -245,17 +287,24 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
 
   def allInfos = alternativePromptReaderOpt match {
     case None =>
-      hitDataService.getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](valTaskSpec.hitTypeId).get
+      hitDataService
+        .getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](
+          valTaskSpec.hitTypeId
+        )
+        .get
     case Some(altReader) =>
-      hitDataService.getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](
-        valTaskSpec.hitTypeId
-      )(altReader, implicitly[Reader[List[QASRLValidationAnswer]]]).get
+      hitDataService
+        .getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](
+          valTaskSpec.hitTypeId
+        )(altReader, implicitly[Reader[List[QASRLValidationAnswer]]])
+        .get
   }
 
-  def latestInfos(n: Int = 5) = allInfos
-    .filter(_.assignments.nonEmpty)
-    .sortBy(_.assignments.map(_.submitTime).max)
-    .takeRight(n)
+  def latestInfos(n: Int = 5) =
+    allInfos
+      .filter(_.assignments.nonEmpty)
+      .sortBy(_.assignments.map(_.submitTime).max)
+      .takeRight(n)
 
   // sorted increasing by submit time
   def infosForWorker(workerId: String) = {
@@ -271,16 +320,20 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   def renderValidation(info: HITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]]) = {
     val sentence = info.hit.prompt.id.tokens
     Text.render(sentence) + "\n" +
-      info.hit.prompt.sourcedQuestions.zip(info.assignments.map(_.response).transpose).map {
+    info.hit.prompt.sourcedQuestions
+      .zip(info.assignments.map(_.response).transpose)
+      .map {
         case (SourcedQuestion(verbIndex, question, sources), validationAnswers) =>
           val genSourceString = sources.mkString(";").take(20)
-          val validationRenderings = validationAnswers.map(QASRLValidationAnswer.render(sentence, _))
+          val validationRenderings =
+            validationAnswers.map(QASRLValidationAnswer.render(sentence, _))
           val allValidationsString = validationRenderings.toList match {
-            case Nil => ""
+            case Nil          => ""
             case head :: tail => f"$head%20s(${tail.mkString("; ")}%s)"
           }
           f"$genSourceString%-20s $question%-35s --> $allValidationsString"
-      }.mkString("\n") + "\n"
+      }
+      .mkString("\n") + "\n"
   }
 
   def printLatestInfos(n: Int = 5) = {
@@ -296,17 +349,23 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
   def printWorstInfos(workerId: String, n: Int = 5) =
     infosForWorker(workerId)
       .sortBy { hi =>
-      if(hi.assignments.size <= 1) Int.MinValue else {
-        val totalQAPairs = hi.hit.prompt.sourcedQuestions.size.toDouble
-        val agreedQAPairs = hi.assignments.head.response
-          .zip(hi.assignments.tail.map(a => a.response.map(a.workerId -> _)).transpose)
-          .map { case (givenAnswer, refPairs) =>
-            QASRLValidationResponseComparison(
-              givenAnswer,
-              refPairs.filter(p => !valManagerPeek.blockedValidators.contains(p._1))
-            ) }
-          .filter(_.isAgreement).size
-        totalQAPairs - agreedQAPairs } }
+        if (hi.assignments.size <= 1) Int.MinValue
+        else {
+          val totalQAPairs = hi.hit.prompt.sourcedQuestions.size.toDouble
+          val agreedQAPairs = hi.assignments.head.response
+            .zip(hi.assignments.tail.map(a => a.response.map(a.workerId -> _)).transpose)
+            .map {
+              case (givenAnswer, refPairs) =>
+                QASRLValidationResponseComparison(
+                  givenAnswer,
+                  refPairs.filter(p => !valManagerPeek.blockedValidators.contains(p._1))
+                )
+            }
+            .filter(_.isAgreement)
+            .size
+          totalQAPairs - agreedQAPairs
+        }
+      }
       .takeRight(n)
       .map(renderValidation)
       .foreach(println)
@@ -318,23 +377,24 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
     pctBad: Option[Double],
     agreement: Option[Double],
     hardAgreement: Option[Double],
-    earnings: Double)
+    earnings: Double
+  )
 
-  case class AggregateStatSummary(
-    numAs: Int,
-    numInvalidAnswers: Int,
-    totalCost: Double) {
+  case class AggregateStatSummary(numAs: Int, numInvalidAnswers: Int, totalCost: Double) {
+
     def combine(worker: StatSummary) = AggregateStatSummary(
       numAs + worker.numAs.getOrElse(0) + worker.numInvalidAnswers.getOrElse(0),
       numInvalidAnswers + worker.numInvalidAnswers.getOrElse(0),
       totalCost + worker.earnings
     )
   }
+
   object AggregateStatSummary {
     def empty = AggregateStatSummary(0, 0, 0.0)
   }
 
   object StatSummary {
+
     def makeFromInfo(
       info: Option[QASRLValidationWorkerInfo]
     ) = info.map(_.workerId).map { wid =>
@@ -352,16 +412,14 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
 
   def allStatSummaries = {
     val allInfos = valManagerPeek.allWorkerInfo
-    allInfos.keySet.toList.flatMap((wid: String) =>
-      StatSummary.makeFromInfo(allInfos.get(wid))
-    )
+    allInfos.keySet.toList.flatMap((wid: String) => StatSummary.makeFromInfo(allInfos.get(wid)))
   }
 
   def printStatsHeading =
     println(f"${"Worker ID"}%14s  ${"As"}%5s  ${"%Bad"}%5s  ${"Agr"}%4s  ${"HAgr"}%4s  $$")
 
   def printSingleStatSummary(ss: StatSummary): Unit = ss match {
-    case StatSummary(wid, numAsOpt, numInvalidsOpt, pctBadOpt, agrOpt, hardAgrOpt, earnings)=>
+    case StatSummary(wid, numAsOpt, numInvalidsOpt, pctBadOpt, agrOpt, hardAgrOpt, earnings) =>
       val numAs = numAsOpt.getOrElse("")
       val pctBad = pctBadOpt.foldMap(pct => f"$pct%4.2f")
       val agr = agrOpt.foldMap(pct => f"$pct%.2f")
@@ -369,7 +427,8 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
       println(f"$wid%14s  $numAs%5s  $pctBad%5s  $agr%4s  $hardAgr%4s  $earnings%.2f")
   }
 
-  def statsForWorker(workerId: String): Option[StatSummary] = allStatSummaries.find(_.workerId == workerId)
+  def statsForWorker(workerId: String): Option[StatSummary] =
+    allStatSummaries.find(_.workerId == workerId)
 
   def printStatsForWorker(workerId: String) = statsForWorker(workerId) match {
     case None => println("No stats for worker.")
@@ -378,7 +437,7 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
       printSingleStatSummary(ss)
   }
 
-  def printStats[B : Ordering](sortFn: StatSummary => B) = {
+  def printStats[B: Ordering](sortFn: StatSummary => B) = {
     val summaries = allStatSummaries.sortBy(sortFn)
     printStatsHeading
     summaries.foreach(printSingleStatSummary)
@@ -386,9 +445,8 @@ class QASRLEvaluationPipeline[SID : Reader : Writer : HasTokens](
 
   def printAllStats = printStats(-_.numAs.getOrElse(0))
 
-  def printFeedbacks(n: Int = 15) = valManagerPeek.feedbacks.take(n).foreach(a =>
-    println(a.workerId + " " + a.feedback)
-  )
+  def printFeedbacks(n: Int = 15) =
+    valManagerPeek.feedbacks.take(n).foreach(a => println(a.workerId + " " + a.feedback))
 
   def aggregateStats = allStatSummaries.foldLeft(AggregateStatSummary.empty)(_ combine _)
 

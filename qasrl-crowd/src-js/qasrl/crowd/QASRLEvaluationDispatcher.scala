@@ -10,7 +10,7 @@ import upickle.default._
 
 import japgolly.scalajs.react.vdom.html_<^.VdomTag
 
-abstract class QASRLEvaluationDispatcher[SID : Reader : Writer](
+abstract class QASRLEvaluationDispatcher[SID: Reader: Writer](
   implicit settings: QASRLEvaluationSettings
 ) extends TaskDispatcher {
 
@@ -18,7 +18,7 @@ abstract class QASRLEvaluationDispatcher[SID : Reader : Writer](
 
   lazy val evalClient = new QASRLEvaluationClient[SID](evaluationInstructions)
 
-  final override lazy val taskMapping = Map[String, () => Unit](
-    settings.evaluationTaskKey -> evalClient.main)
+  final override lazy val taskMapping =
+    Map[String, () => Unit](settings.evaluationTaskKey -> evalClient.main)
 
 }

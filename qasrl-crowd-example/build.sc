@@ -1,4 +1,5 @@
 import mill._, mill.scalalib._, mill.scalalib.publish._, mill.scalajslib._
+import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
 
@@ -8,10 +9,11 @@ val thisScalaJSVersion = "0.6.23"
 val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
-val nlpdataVersion = "0.1.0"
-val spacroVersion = "0.1.0"
 val qasrlVersion = "0.1.0-SNAPSHOT"
 val qasrlCrowdVersion = "0.1.0-SNAPSHOT"
+
+val nlpdataVersion = "0.1.0"
+val spacroVersion = "0.1.0"
 
 val catsVersion = "0.9.0"
 val upickleVersion = "0.4.4"
@@ -56,7 +58,7 @@ trait SimpleJSDeps extends Module {
   }
 }
 
-trait ExampleModule extends ScalaModule {
+trait ExampleModule extends ScalaModule with ScalafmtModule {
 
   def scalaVersion = thisScalaVersion
 
@@ -76,7 +78,6 @@ trait ExampleModule extends ScalaModule {
     "-language:higherKinds"
   )
 
-  // TODO remove
   def repositories = super.repositories ++ Seq(
     MavenRepository("https://oss.sonatype.org/content/repositories/snapshots")
   )

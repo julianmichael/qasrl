@@ -9,24 +9,26 @@ sealed trait Argument {
 
   def isNoun: Boolean = this match {
     case Noun(_) => true
-    case _ => false
+    case _       => false
   }
+
   def isPrep: Boolean = this match {
     case Prep(_, _) => true
-    case _ => false
+    case _          => false
   }
+
   def isLocative: Boolean = this match {
     case Locative => true
-    case _ => false
+    case _        => false
   }
 }
 
 case class Noun(
   isAnimate: Boolean
 ) extends Argument {
-  override def placeholder = List(if(isAnimate) "someone" else "something")
+  override def placeholder = List(if (isAnimate) "someone" else "something")
   override def gap = None
-  override def wh = if(isAnimate) Some("Who") else Some("What")
+  override def wh = if (isAnimate) Some("Who") else Some("What")
 }
 
 case class Prep(

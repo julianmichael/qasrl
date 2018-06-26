@@ -17,7 +17,9 @@ import qasrl.util.mergeMaps
 ) {
 
   def cullVerblessSentences = filterSentences(_.verbEntries.isEmpty)
-  def cullQuestionlessSentences = filterSentences(_.verbEntries.values.forall(_.questionLabels.isEmpty))
+
+  def cullQuestionlessSentences =
+    filterSentences(_.verbEntries.values.forall(_.questionLabels.isEmpty))
 
   def filterSentenceIds(predicate: String => Boolean) = Dataset(
     sentences.filter(e => predicate(e._1))
@@ -38,58 +40,87 @@ import qasrl.util.mergeMaps
   // culls questions with no source
   def filterQuestionSources(predicate: String => Boolean) =
     Dataset(
-      sentences.transform { case (sid, sentence) =>
-        Sentence.verbEntries
-          .composeTraversal(Optics.each)
-          .composeLens(VerbEntry.questionLabels)
-          .modify(questionLabels =>
-          questionLabels.flatMap { case (qLCS, qLabel) =>
-            val newSources = qLabel.questionSources.filter(predicate)
-            if(newSources.isEmpty) None
-            else Some(qLCS -> qLabel.copy(questionSources = newSources))
-          }
-        )(sentence)
+      sentences.transform {
+        case (sid, sentence) =>
+          Sentence.verbEntries
+            .composeTraversal(Optics.each)
+            .composeLens(VerbEntry.questionLabels)
+            .modify(
+              questionLabels =>
+                questionLabels.flatMap {
+                  case (qLCS, qLabel) =>
+                    val newSources = qLabel.questionSources.filter(predicate)
+                    if (newSources.isEmpty) None
+                    else Some(qLCS -> qLabel.copy(questionSources = newSources))
+              }
+            )(sentence)
       }
     )
 
   def merge(that: Dataset): Writer[List[Dataset.DataMergeFailure], Dataset] = {
     val allKeys = this.sentences.keySet ++ that.sentences.keySet
     type Fails = List[Dataset.DataMergeFailure]
-    mergeMaps(this.sentences, that.sentences).toList.traverse[Writer[Fails, ?], (String, Sentence)] {
-      case (sentenceId, sentenceEntryIor) =>
-        sentenceEntryIor.mergeM[Writer[Fails, ?]] { (xe, ye) =>
-          mergeMaps(xe.verbEntries, ye.verbEntries).toList.traverse[Writer[Fails, ?], (Int, VerbEntry)] {
-            case (verbIndex, verbEntryIor) =>
-              verbEntryIor.mergeM[Writer[Fails, ?]]((xv, yv) =>
-                if(xv.verbIndex == yv.verbIndex && xv.verbInflectedForms == yv.verbInflectedForms) {
-                  mergeMaps(xv.questionLabels, yv.questionLabels).toList.traverse[Writer[Fails, ?], (String, QuestionLabel)] {
-                    case (questionString, questionLabelIor) =>
-                      questionLabelIor.mergeM[Writer[Fails, ?]](
-                        (xq, yq) => xq.combineWithLike(yq) match {
-                          case Right(q) => Writer.value[Fails, QuestionLabel](q)
-                          case Left(msg) => Writer.tell[Fails](
-                            List(
-                              Dataset.QuestionMergeFailure(
-                                sentenceId, xe.sentenceTokens, xv, yv, xq, yq, msg
+    mergeMaps(this.sentences, that.sentences).toList
+      .traverse[Writer[Fails, ?], (String, Sentence)] {
+        case (sentenceId, sentenceEntryIor) =>
+          sentenceEntryIor
+            .mergeM[Writer[Fails, ?]] { (xe, ye) =>
+              mergeMaps(xe.verbEntries, ye.verbEntries).toList
+                .traverse[Writer[Fails, ?], (Int, VerbEntry)] {
+                  case (verbIndex, verbEntryIor) =>
+                    verbEntryIor
+                      .mergeM[Writer[Fails, ?]](
+                        (xv, yv) =>
+                          if (xv.verbIndex == yv.verbIndex && xv.verbInflectedForms == yv.verbInflectedForms) {
+                            mergeMaps(xv.questionLabels, yv.questionLabels).toList
+                              .traverse[Writer[Fails, ?], (String, QuestionLabel)] {
+                                case (questionString, questionLabelIor) =>
+                                  questionLabelIor
+                                    .mergeM[Writer[Fails, ?]](
+                                      (xq, yq) =>
+                                        xq.combineWithLike(yq) match {
+                                          case Right(q) => Writer.value[Fails, QuestionLabel](q)
+                                          case Left(msg) =>
+                                            Writer
+                                              .tell[Fails](
+                                                List(
+                                                  Dataset.QuestionMergeFailure(
+                                                    sentenceId,
+                                                    xe.sentenceTokens,
+                                                    xv,
+                                                    yv,
+                                                    xq,
+                                                    yq,
+                                                    msg
+                                                  )
+                                                )
+                                              )
+                                              .as(xq)
+                                      }
+                                    )
+                                    .map(questionString -> _)
+                              }
+                              .map(
+                                questionLabels =>
+                                  VerbEntry(verbIndex, xv.verbInflectedForms, questionLabels.toMap)
                               )
-                            )
-                          ).as(xq)
+                          } else {
+                            Writer
+                              .tell[Fails](
+                                List(
+                                  Dataset.VerbMergeFailure(sentenceId, xe.sentenceTokens, xv, yv)
+                                )
+                              )
+                              .as(xv)
                         }
-                      ).map(questionString -> _)
-                  }.map(questionLabels =>
-                    VerbEntry(verbIndex, xv.verbInflectedForms, questionLabels.toMap)
-                  )
-                } else {
-                  Writer.tell[Fails](
-                    List(Dataset.VerbMergeFailure(sentenceId, xe.sentenceTokens, xv, yv))
-                  ).as(xv)
+                      )
+                      .map(verbIndex -> _)
                 }
-              ).map(verbIndex -> _)
-          }.map(verbEntries =>
-            Sentence(sentenceId, xe.sentenceTokens, verbEntries.toMap)
-          )
-        }.map(sentenceId -> _)
-    }.map(sentences => Dataset(sentences.toMap))
+                .map(verbEntries => Sentence(sentenceId, xe.sentenceTokens, verbEntries.toMap))
+            }
+            .map(sentenceId -> _)
+      }
+      .map(sentences => Dataset(sentences.toMap))
   }
 }
 
@@ -97,15 +128,20 @@ object Dataset {
   sealed trait DataMergeFailure
 
   @Lenses case class QuestionMergeFailure(
-    sentenceId: String, sentenceTokens: Vector[String],
-    v1: VerbEntry, v2: VerbEntry,
-    q1: QuestionLabel, q2: QuestionLabel,
+    sentenceId: String,
+    sentenceTokens: Vector[String],
+    v1: VerbEntry,
+    v2: VerbEntry,
+    q1: QuestionLabel,
+    q2: QuestionLabel,
     message: String
   ) extends DataMergeFailure
 
   @Lenses case class VerbMergeFailure(
-    sentenceId: String, sentenceTokens: Vector[String],
-    v1: VerbEntry, v2: VerbEntry
+    sentenceId: String,
+    sentenceTokens: Vector[String],
+    v1: VerbEntry,
+    v2: VerbEntry
   ) extends DataMergeFailure
 
   object DataMergeFailure {
@@ -114,20 +150,23 @@ object Dataset {
   }
 
   val printMergeErrors: (List[DataMergeFailure] => Unit) =
-    (fails: List[DataMergeFailure]) => fails.foreach {
-      case QuestionMergeFailure(sentenceId, sentenceTokens, v1, v2, q1, q2, msg) =>
-        System.err.println(s"Sentence: $sentenceId")
-        System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
-        System.err.println(s"Verb: ${v1.verbIndex} - " + v1.verbInflectedForms.allForms.mkString(", "))
-        System.err.println(msg)
-      case VerbMergeFailure(sentenceId, sentenceTokens, v1, v2) =>
-        val thisVerbString = v1.verbIndex + " (" +
+    (fails: List[DataMergeFailure]) =>
+      fails.foreach {
+        case QuestionMergeFailure(sentenceId, sentenceTokens, v1, v2, q1, q2, msg) =>
+          System.err.println(s"Sentence: $sentenceId")
+          System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
+          System.err.println(
+            s"Verb: ${v1.verbIndex} - " + v1.verbInflectedForms.allForms.mkString(", ")
+          )
+          System.err.println(msg)
+        case VerbMergeFailure(sentenceId, sentenceTokens, v1, v2) =>
+          val thisVerbString = v1.verbIndex + " (" +
           v1.verbInflectedForms.allForms.mkString(",") + ")"
-        val otherVerbString = v2.verbIndex + " (" +
+          val otherVerbString = v2.verbIndex + " (" +
           v2.verbInflectedForms.allForms.mkString(",") + ")"
-        System.err.println(s"Sentence: $sentenceId")
-        System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
-        System.err.println(s"Attempted to combine indices $thisVerbString and $otherVerbString")
+          System.err.println(s"Sentence: $sentenceId")
+          System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
+          System.err.println(s"Attempted to combine indices $thisVerbString and $otherVerbString")
     }
 
   def datasetMonoid(processMergeFailures: List[DataMergeFailure] => Unit): Monoid[Dataset] =

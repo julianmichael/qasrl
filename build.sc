@@ -1,6 +1,9 @@
 import mill._, mill.scalalib._, mill.scalalib.publish._, mill.scalajslib._
+import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
+
+val thisPublishVersion = "0.1.0-SNAPSHOT"
 
 val thisScalaVersion = "2.11.12"
 val thisScalaJSVersion = "0.6.23"
@@ -34,7 +37,7 @@ trait JsPlatform extends ScalaJSModule {
   def scalaJSVersion = thisScalaJSVersion
 }
 
-trait CommonModule extends ScalaModule {
+trait CommonModule extends ScalaModule with ScalafmtModule {
 
   def scalaVersion = thisScalaVersion
 
@@ -70,7 +73,7 @@ trait CommonModule extends ScalaModule {
 }
 
 trait CommonPublishModule extends CommonModule with PublishModule {
-  def publishVersion = "0.1.0-SNAPSHOT"
+  def publishVersion = thisPublishVersion
   def pomSettings = PomSettings(
     description = artifactName(),
     organization = "org.julianmichael",

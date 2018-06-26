@@ -27,33 +27,47 @@ object MultiContigSpanHighlightableSentenceComponent {
     highlightedSpans: List[(Span, TagMod)], // in order of priority, each with own style. first determines click events
     hover: Int => Callback,
     touch: Int => Callback,
-    render: List[VdomTagOf[html.Span]] => VdomElement) // word/span elements to whole thing
+    render: List[VdomTagOf[html.Span]] => VdomElement
+  ) // word/span elements to whole thing
 
   val MultiContigSpanHighlightableSentence = ScalaComponent
     .builder[MultiContigSpanHighlightableSentenceProps]("Multi-Contig-Span Highlightable Sentence")
     .render_P {
-    case MultiContigSpanHighlightableSentenceProps(sentence, styleForIndex, highlightedSpans, hover, touch, render) =>
-      render(
-        Text.render(
-          sentence.indices.toList,
-          (index: Int) => sentence(index),
-          (nextIndex: Int) => List(
-            <.span(
-              ^.key := s"space-$nextIndex",
-              highlightedSpans.find(span => span._1.contains(nextIndex) && span._1.contains(nextIndex - 1)).whenDefined(_._2),
-              " "
+      case MultiContigSpanHighlightableSentenceProps(
+          sentence,
+          styleForIndex,
+          highlightedSpans,
+          hover,
+          touch,
+          render
+          ) =>
+        render(
+          Text.render(
+            sentence.indices.toList,
+            (index: Int) => sentence(index),
+            (nextIndex: Int) =>
+              List(
+                <.span(
+                  ^.key := s"space-$nextIndex",
+                  highlightedSpans
+                    .find(span => span._1.contains(nextIndex) && span._1.contains(nextIndex - 1))
+                    .whenDefined(_._2),
+                  " "
+                )
+            ),
+            (index: Int) =>
+              List(
+                <.span(
+                  ^.key := s"word-$index",
+                  highlightedSpans.find(_._1.contains(index)).whenDefined(_._2),
+                  styleForIndex(index),
+                  ^.onMouseMove ==> ((e: ReactMouseEvent) => { e.stopPropagation; hover(index) }),
+                  ^.onClick ==> ((e: ReactMouseEvent) => { e.stopPropagation; touch(index) }),
+                  Text.normalizeToken(sentence(index))
+                )
             )
-          ),
-          (index: Int) => List(
-            <.span(
-              ^.key := s"word-$index",
-              highlightedSpans.find(_._1.contains(index)).whenDefined(_._2),
-              styleForIndex(index),
-              ^.onMouseMove ==> ((e: ReactMouseEvent) => { e.stopPropagation; hover(index) }),
-              ^.onClick ==> ((e: ReactMouseEvent) => { e.stopPropagation; touch(index) }),
-              Text.normalizeToken(sentence(index))
-            ))
+          )
         )
-      )
-  }.build
+    }
+    .build
 }

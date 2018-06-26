@@ -13,14 +13,15 @@ object implicits extends PlatformSpecificImplicits {
       val (sum, count) = fa.foldLeft(N.fromInt(0), N.fromInt(0)) {
         case ((curSum, curCount), a) => (N.plus(curSum, a), N.plus(curCount, N.fromInt(1)))
       }
-      if(count == 0) None else Some(N.toDouble(sum) / N.toDouble(count))
+      if (count == 0) None else Some(N.toDouble(sum) / N.toDouble(count))
     }
 
-    def proportion(predicate: A => Boolean): Double = fa.foldLeft((0, 0)) {
-      case ((trues, total), a) =>
-        if(predicate(a)) (trues + 1, total + 1)
-        else (trues, total + 1)
-    } match { case (trues, total) => trues.toDouble / total }
+    def proportion(predicate: A => Boolean): Double =
+      fa.foldLeft((0, 0)) {
+        case ((trues, total), a) =>
+          if (predicate(a)) (trues + 1, total + 1)
+          else (trues, total + 1)
+      } match { case (trues, total) => trues.toDouble / total }
 
   }
 
@@ -31,7 +32,7 @@ object implicits extends PlatformSpecificImplicits {
 
     def ifEmpty[B](b: => B): Option[B] = a match {
       case Some(_) => None
-      case None => Some(b)
+      case None    => Some(b)
     }
   }
 

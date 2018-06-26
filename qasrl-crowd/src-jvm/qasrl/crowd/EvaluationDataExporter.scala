@@ -11,11 +11,11 @@ import nlpdata.util.HasTokens.ops._
 import nlpdata.util.LowerCaseStrings._
 
 import scala.util.Random
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.StrictLogging
 
-class EvaluationDataExporter[SID : HasTokens](
+class EvaluationDataExporter[SID: HasTokens](
   experiment: QASRLEvaluationPipeline[SID]
 ) extends StrictLogging {
   import experiment.inflections
@@ -27,94 +27,132 @@ class EvaluationDataExporter[SID : HasTokens](
     label: String,
     rand: Random = new Random(26558729L)
   ): Map[String, String] = {
-    rand.shuffle(workers.toVector).zipWithIndex.map { case (wid, index) =>
-      wid -> s"turk-$label-$index"
-    }.toMap
+    rand
+      .shuffle(workers.toVector)
+      .zipWithIndex
+      .map {
+        case (wid, index) =>
+          wid -> s"turk-$label-$index"
+      }
+      .toMap
   }
 
   import qasrl.data._
+
   def dataset(
     sentenceIdToString: SID => String,
     workerAnonymizationMapping: String => String
   ) = Dataset(
-    infos.groupBy(_.hit.prompt.id).map { case (id, infosForSentence) =>
-      val sentenceIdString = sentenceIdToString(id)
-      val sentenceTokens = id.tokens
-      val verbIndices = infosForSentence.flatMap(_.hit.prompt.sourcedQuestions.map(_.verbIndex)).toSet
-      val partialVerbEntries = for {
-        HITInfo(hit, assignments) <- infosForSentence
-        (verbIndex, qaTuples) <- hit.prompt.sourcedQuestions.zip(
-          assignments.map(
-            a => a.response.map(valAnswer =>
-              AnswerLabel(
-                workerAnonymizationMapping(a.workerId),
-                valAnswer match {
-                  case qasrl.crowd.InvalidQuestion => qasrl.data.InvalidQuestion
-                  case qasrl.crowd.Answer(spans) => Answer(
-                    spans.map(s => AnswerSpan(s.begin, s.end + 1)).toSet
+    infos.groupBy(_.hit.prompt.id).map {
+      case (id, infosForSentence) =>
+        val sentenceIdString = sentenceIdToString(id)
+        val sentenceTokens = id.tokens
+        val verbIndices =
+          infosForSentence.flatMap(_.hit.prompt.sourcedQuestions.map(_.verbIndex)).toSet
+        val partialVerbEntries = for {
+          HITInfo(hit, assignments) <- infosForSentence
+          (verbIndex, qaTuples) <- hit.prompt.sourcedQuestions
+            .zip(
+              assignments
+                .map(
+                  a =>
+                    a.response.map(
+                      valAnswer =>
+                        AnswerLabel(
+                          workerAnonymizationMapping(a.workerId),
+                          valAnswer match {
+                            case qasrl.crowd.InvalidQuestion => qasrl.data.InvalidQuestion
+                            case qasrl.crowd.Answer(spans) =>
+                              Answer(
+                                spans.map(s => AnswerSpan(s.begin, s.end + 1)).toSet
+                              )
+                          }
+                      )
                   )
-                }
-              )
+                )
+                .transpose
             )
-          ).transpose
-        ).groupBy(_._1.verbIndex)
-        verbInflectedForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase)
-      } yield {
-        val questionStrings = qaTuples
-          .map(_._1.question)
-          .map(_.replaceAll("\\s+", " "))
-        val questionSourceSets = qaTuples
-          .map(_._1.sources)
-        val questionSlotLabelOpts = SlotBasedLabel.getVerbTenseAbstractedSlotsForQuestion(
-          sentenceTokens, verbInflectedForms, questionStrings
-        )
-        val answerSets = qaTuples.map(_._2.toSet)
-        questionStrings.zip(questionSlotLabelOpts).collect {
-          case (qString, None) => logger.warn(s"Unprocessable question: $qString")
-        }
-
-        VerbEntry(
-          verbIndex,
-          verbInflectedForms,
-          (questionStrings zip questionSourceSets zip questionSlotLabelOpts zip answerSets).collect {
-            case (((questionStringRaw, questionSources), Some(questionSlots)), answers) =>
-              val questionString = questionStringRaw.toLowerCase.capitalize
-              val questionTokensIsh = questionString.init.split(" ").toVector.map(_.lowerCase)
-              val qPreps = questionTokensIsh.filter(TemplateStateMachine.allPrepositions.contains).toSet
-              val qPrepBigrams = questionTokensIsh.sliding(2)
-                .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
-                .map(_.mkString(" ").lowerCase)
-                .toSet
-              val stateMachine = new TemplateStateMachine(sentenceTokens, verbInflectedForms, Some(qPreps ++ qPrepBigrams))
-              val questionProcessor = new QuestionProcessor(stateMachine)
-              val frame = questionProcessor.processStringFully(questionString).right.get.toList.collect {
-                case QuestionProcessor.CompleteState(_, frame, _) => frame
-              }.head
-              questionString -> QuestionLabel(
-                questionString, questionSources,
-                answers, questionSlots,
-                frame.tense, frame.isPerfect, frame.isProgressive, frame.isNegated, frame.isPassive
-              )
-          }.toMap
-        )
-      }
-      sentenceIdString -> {
-        Sentence(
-          sentenceIdString,
-          sentenceTokens,
-          partialVerbEntries.groupBy(_.verbIndex).transform { case (_, verbEntries) =>
-            verbEntries.reduce(
-              (e1, e2) => e1.combineWithLike(e2) match {
-                case Right(e) => e
-                case Left(msg) =>
-                  System.err.println(s"Sentence: $sentenceIdString")
-                  System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
-                  System.err.println(msg)
-                  e1
-              })
+            .groupBy(_._1.verbIndex)
+          verbInflectedForms <- inflections.getInflectedForms(sentenceTokens(verbIndex).lowerCase)
+        } yield {
+          val questionStrings = qaTuples
+            .map(_._1.question)
+            .map(_.replaceAll("\\s+", " "))
+          val questionSourceSets = qaTuples
+            .map(_._1.sources)
+          val questionSlotLabelOpts = SlotBasedLabel.getVerbTenseAbstractedSlotsForQuestion(
+            sentenceTokens,
+            verbInflectedForms,
+            questionStrings
+          )
+          val answerSets = qaTuples.map(_._2.toSet)
+          questionStrings.zip(questionSlotLabelOpts).collect {
+            case (qString, None) => logger.warn(s"Unprocessable question: $qString")
           }
-        )
-      }
+
+          VerbEntry(
+            verbIndex,
+            verbInflectedForms,
+            (questionStrings zip questionSourceSets zip questionSlotLabelOpts zip answerSets).collect {
+              case (((questionStringRaw, questionSources), Some(questionSlots)), answers) =>
+                val questionString = questionStringRaw.toLowerCase.capitalize
+                val questionTokensIsh = questionString.init.split(" ").toVector.map(_.lowerCase)
+                val qPreps =
+                  questionTokensIsh.filter(TemplateStateMachine.allPrepositions.contains).toSet
+                val qPrepBigrams = questionTokensIsh
+                  .sliding(2)
+                  .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
+                  .map(_.mkString(" ").lowerCase)
+                  .toSet
+                val stateMachine = new TemplateStateMachine(
+                  sentenceTokens,
+                  verbInflectedForms,
+                  Some(qPreps ++ qPrepBigrams)
+                )
+                val questionProcessor = new QuestionProcessor(stateMachine)
+                val frame = questionProcessor
+                  .processStringFully(questionString)
+                  .right
+                  .get
+                  .toList
+                  .collect {
+                    case QuestionProcessor.CompleteState(_, frame, _) => frame
+                  }
+                  .head
+                questionString -> QuestionLabel(
+                  questionString,
+                  questionSources,
+                  answers,
+                  questionSlots,
+                  frame.tense,
+                  frame.isPerfect,
+                  frame.isProgressive,
+                  frame.isNegated,
+                  frame.isPassive
+                )
+            }.toMap
+          )
+        }
+        sentenceIdString -> {
+          Sentence(
+            sentenceIdString,
+            sentenceTokens,
+            partialVerbEntries.groupBy(_.verbIndex).transform {
+              case (_, verbEntries) =>
+                verbEntries.reduce(
+                  (e1, e2) =>
+                    e1.combineWithLike(e2) match {
+                      case Right(e) => e
+                      case Left(msg) =>
+                        System.err.println(s"Sentence: $sentenceIdString")
+                        System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))
+                        System.err.println(msg)
+                        e1
+                  }
+                )
+            }
+          )
+        }
     }
   )
 }

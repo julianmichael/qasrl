@@ -6,20 +6,21 @@ import nlpdata.datasets.wiktionary.InflectedForms
 
 package object crowd {
 
-  case class QASRLGenerationPrompt[SID](
-    id: SID,
-    verbIndex: Int)
+  case class QASRLGenerationPrompt[SID](id: SID, verbIndex: Int)
 
   case class GenerationStatSummary(
     numVerbsCompleted: Int, // before validation: used to calculate coverage
     numQuestionsWritten: Int, // before validation: "
-    workerStatsOpt: Option[QASRLGenerationWorkerStats])
+    workerStatsOpt: Option[QASRLGenerationWorkerStats]
+  )
 
   case class QASRLGenerationAjaxRequest[SID](
     workerIdOpt: Option[String],
-    prompt: QASRLGenerationPrompt[SID]) {
+    prompt: QASRLGenerationPrompt[SID]
+  ) {
     type Response = QASRLGenerationAjaxResponse
   }
+
   object QASRLGenerationAjaxRequest {
     import upickle.default._
     implicit def responseRW[SID] = new ResponseRW[QASRLGenerationAjaxRequest[SID]] {
@@ -33,13 +34,13 @@ package object crowd {
   case class QASRLGenerationAjaxResponse(
     stats: GenerationStatSummary,
     tokens: Vector[String],
-    inflectedForms: InflectedForms)
+    inflectedForms: InflectedForms
+  )
 
-  case class QASRLValidationAjaxRequest[SID](
-    workerIdOpt: Option[String],
-    id: SID) {
+  case class QASRLValidationAjaxRequest[SID](workerIdOpt: Option[String], id: SID) {
     type Response = QASRLValidationAjaxResponse
   }
+
   object QASRLValidationAjaxRequest {
     import upickle.default._
     implicit def responseRW[SID] = new ResponseRW[QASRLValidationAjaxRequest[SID]] {
@@ -52,7 +53,8 @@ package object crowd {
 
   case class QASRLValidationAjaxResponse(
     workerInfoOpt: Option[QASRLValidationWorkerInfoSummary],
-    sentence: Vector[String])
+    sentence: Vector[String]
+  )
 
   import nlpdata.util.LowerCaseStrings._
 

@@ -15,14 +15,15 @@ import monocle.macros._
   * either it has an answer, or is invalid
   */
 sealed trait QASRLValidationAnswer {
+
   def isInvalid = this match {
     case InvalidQuestion => true
-    case _ => false
+    case _               => false
   }
 
   def getAnswer = this match {
     case a @ Answer(_) => Some(a)
-    case _ => None
+    case _             => None
   }
   def isAnswer = getAnswer.nonEmpty
 
@@ -34,9 +35,11 @@ sealed trait QASRLValidationAnswer {
   def agreesWith(that: QASRLValidationAnswer) = (this, that) match {
     case (InvalidQuestion, InvalidQuestion) => true
     case (Answer(spans1), Answer(spans2)) =>
-      spans1.exists(span1 =>
-        spans2.exists(span2 =>
-          (span1.begin to span1.end).toSet.intersect((span2.begin to span2.end).toSet).nonEmpty
+      spans1.exists(
+        span1 =>
+          spans2.exists(
+            span2 =>
+              (span1.begin to span1.end).toSet.intersect((span2.begin to span2.end).toSet).nonEmpty
         )
       )
     case _ => false
@@ -58,7 +61,7 @@ object QASRLValidationAnswer {
     va: QASRLValidationAnswer
   ): String = va match {
     case InvalidQuestion => "Invalid"
-    case Answer(spans) => spans.map { case Span(begin, end) => s"$begin-$end" }.mkString(" / ")
+    case Answer(spans)   => spans.map { case Span(begin, end) => s"$begin-$end" }.mkString(" / ")
   }
 
   // inverse of QASRLValidationAnswer.renderIndices
@@ -66,14 +69,19 @@ object QASRLValidationAnswer {
     s: String
   ): QASRLValidationAnswer = s match {
     case "Invalid" => InvalidQuestion
-    case other => Answer(
-      other.split(" / ").toList.map(is =>
-        is.split("-").map(_.toInt).toList match {
-          case begin :: end :: Nil => Span(begin, end)
-          case _ => ??? // should not happen
-        }
+    case other =>
+      Answer(
+        other
+          .split(" / ")
+          .toList
+          .map(
+            is =>
+              is.split("-").map(_.toInt).toList match {
+                case begin :: end :: Nil => Span(begin, end)
+                case _                   => ??? // should not happen
+            }
+          )
       )
-    )
   }
 
   // render a validation response in a readable way for browsing
@@ -82,6 +90,7 @@ object QASRLValidationAnswer {
     va: QASRLValidationAnswer
   ): String = va match {
     case InvalidQuestion => "<Invalid>"
-    case Answer(spans) => spans.map(span => Text.renderSpan(sentence, (span.begin to span.end).toSet)).mkString(" / ")
+    case Answer(spans) =>
+      spans.map(span => Text.renderSpan(sentence, (span.begin to span.end).toSet)).mkString(" / ")
   }
 }

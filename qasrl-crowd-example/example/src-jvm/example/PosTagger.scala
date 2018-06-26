@@ -9,7 +9,9 @@ import edu.stanford.nlp.tagger.maxent.MaxentTagger
 
 object PosTagger {
 
-  lazy val tagger: MaxentTagger = new MaxentTagger("edu/stanford/nlp/models/pos-tagger/english-left3words/english-left3words-distsim.tagger");
+  lazy val tagger: MaxentTagger = new MaxentTagger(
+    "edu/stanford/nlp/models/pos-tagger/english-left3words/english-left3words-distsim.tagger"
+  );
 
   val posTagCache = collection.mutable.Map.empty[Vector[String], Vector[Word]]
 
@@ -19,15 +21,14 @@ object PosTagger {
     // probably we can do that with a tagger parameter...but...how about later..
     posTagCache.get(origTokens) match {
       case None =>
-        val result = tagger.tagTokenizedString(s.toList.mkString(" ")).split(" ").toVector
+        val result = tagger
+          .tagTokenizedString(s.toList.mkString(" "))
+          .split(" ")
+          .toVector
           .map(_.split("_"))
           .map(s => (s(0), s(1)))
           .zipWithIndex
-          .map { case ((token, pos), index) => Word(
-                  token = token,
-                  pos = pos,
-                  index = index)
-        }
+          .map { case ((token, pos), index) => Word(token = token, pos = pos, index = index) }
         posTagCache.put(origTokens, result)
         result
       case Some(result) => result
