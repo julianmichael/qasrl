@@ -8,6 +8,11 @@ case class AccuracyJudgment(
   validatorId: String,
   isValid: Boolean
 )
+object AccuracyJudgment {
+  import upickle.default._
+  implicit val reader = macroR[AccuracyJudgment]
+  implicit val writer = macroW[AccuracyJudgment]
+}
 
 case class QASRLGenerationWorkerStats(
   workerId: String,
@@ -49,6 +54,9 @@ case class QASRLGenerationWorkerStats(
 
 object QASRLGenerationWorkerStats {
 
-  def empty(workerId: String) =
-    QASRLGenerationWorkerStats(workerId, 0, 0, Vector.empty[AccuracyJudgment], 0, 0.0)
+  def empty(workerId: String) = QASRLGenerationWorkerStats(workerId, 0, 0, Vector.empty[AccuracyJudgment], 0, 0.0)
+
+  import upickle.default._
+  implicit val reader = macroR[QASRLGenerationWorkerStats]
+  implicit val writer = macroW[QASRLGenerationWorkerStats]
 }

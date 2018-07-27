@@ -1,9 +1,11 @@
 package qasrl.data
 
+import scala.collection.immutable.SortedMap
+
 import monocle.macros.Lenses
 
 @Lenses case class Sentence(
   sentenceId: String,
   sentenceTokens: Vector[String],
-  verbEntries: Map[Int, VerbEntry]
+  verbEntries: SortedMap[Int, VerbEntry]
 )

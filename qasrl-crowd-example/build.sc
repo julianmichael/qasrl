@@ -12,13 +12,15 @@ val kindProjectorVersion = "0.9.4"
 val qasrlVersion = "0.1.0-SNAPSHOT"
 val qasrlCrowdVersion = "0.1.0-SNAPSHOT"
 
-val nlpdataVersion = "0.1.0"
-val spacroVersion = "0.1.0"
+// cats and react libs -- make sure versions match up
+val catsVersion = "1.1.0"
+val scalajsReactVersion = "1.2.3"
+val spacroVersion = "0.2.0"
+val nlpdataVersion = "0.2.0"
+val circeVersion = "0.9.3"
+val monocleVersion = "1.5.1-cats"
 
-val catsVersion = "0.9.0"
-val upickleVersion = "0.4.4"
-val monocleVersion = "1.4.0"
-val circeVersion = "0.8.0"
+val upickleVersion = "0.5.1"
 
 val akkaActorVersion = "2.4.20"
 val scalaLoggingVersion = "3.5.0"
@@ -27,7 +29,6 @@ val slf4jApiVersion = "1.7.21"
 
 val scalajsDomVersion = "0.9.6"
 val scalajsJqueryVersion = "0.9.3"
-val scalajsReactVersion = "1.1.0"
 val scalajsScalaCSSVersion = "0.5.3"
 
 trait JvmPlatform {
@@ -87,7 +88,7 @@ trait ExampleModule extends ScalaModule with ScalafmtModule {
     ivy"org.julianmichael::spacro::$spacroVersion",
     ivy"org.julianmichael::qasrl::$qasrlVersion",
     ivy"org.julianmichael::qasrl-crowd::$qasrlCrowdVersion",
-    ivy"org.typelevel::cats::$catsVersion",
+    ivy"org.typelevel::cats-core::$catsVersion",
     ivy"com.github.julien-truffaut::monocle-core::$monocleVersion",
     ivy"com.github.julien-truffaut::monocle-macro::$monocleVersion",
     ivy"io.circe::circe-core::$circeVersion",
@@ -126,7 +127,6 @@ object example extends Module {
       ivy"be.doeraene::scalajs-jquery::$scalajsJqueryVersion",
       ivy"com.github.japgolly.scalajs-react::core::$scalajsReactVersion",
       ivy"com.github.japgolly.scalajs-react::ext-monocle::$scalajsReactVersion",
-      ivy"com.github.japgolly.scalajs-react::ext-cats::$scalajsReactVersion",
       ivy"com.github.japgolly.scalacss::core::$scalajsScalaCSSVersion",
       ivy"com.github.japgolly.scalacss::ext-react::$scalajsScalaCSSVersion"
     )

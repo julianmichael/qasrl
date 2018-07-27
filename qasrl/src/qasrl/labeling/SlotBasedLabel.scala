@@ -233,7 +233,7 @@ object SlotBasedLabel {
   )
 
   val getVerbTenseAbstractedSlotsForQuestion = (
-    Arrow[QuestionLabelMapper].id &&& getSlotsForQuestion
+    Arrow[QuestionLabelMapper].id merge getSlotsForQuestion
   ) >>> QuestionLabelMapper.liftOptionalWithContext(
     (
       sentenceTokens: Vector[String],

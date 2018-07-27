@@ -60,7 +60,7 @@ class QuestionProcessor(stateMachine: TemplateStateMachine) {
 
   def processCharacter(state: ValidState, observedChar: Char): ProcessingState = state match {
     case c @ CompleteState(str, _, _) =>
-      EitherT.left[List, InvalidState, ValidState](List(InvalidState(c, str.size)))
+      EitherT.left[ValidState](List(InvalidState(c, str.size)))
     case ips @ InProgressState(
           textSoFarReversed,
           frameState,
@@ -69,18 +69,18 @@ class QuestionProcessor(stateMachine: TemplateStateMachine) {
         ) =>
       val expectedChar = textRemainingInCurrentTransition.head
       if (expectedChar.toLower != observedChar.toLower) {
-        EitherT.left[List, InvalidState, ValidState](
+        EitherT.left[ValidState](
           List(InvalidState(ips, textSoFarReversed.size))
         )
       } else {
         val newTextReversed = expectedChar :: textSoFarReversed
         NonEmptyList.fromList(textRemainingInCurrentTransition.tail) match {
           case None =>
-            EitherT.right[List, InvalidState, ValidState](
+            EitherT.right[InvalidState](
               getStatesFromTransition(newTextReversed, frameState, targetState)
             )
           case Some(remainingChars) =>
-            EitherT.right[List, InvalidState, ValidState](
+            EitherT.right[InvalidState](
               List(
                 InProgressState(newTextReversed, frameState, remainingChars, targetState)
               )
@@ -99,7 +99,7 @@ class QuestionProcessor(stateMachine: TemplateStateMachine) {
     // mz >>= (z => l.foldLeftM(z)(f)) == l.foldLeft(mz)((ma, x) => ma >>= (f(_, x)))
 
     input.toList.foldLeft(
-      EitherT.right[List, InvalidState, ValidState](
+      EitherT.right[InvalidState](
         getStatesFromTransition(Nil, stateMachine.initialFrameState, stateMachine.start)
       )
     ) {

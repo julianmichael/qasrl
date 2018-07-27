@@ -9,3 +9,8 @@ case class QASRLValidationPrompt[SID](
 ) {
   def id = genPrompt.id
 }
+object QASRLValidationPrompt {
+  import upickle.default._
+  implicit def reader[SID: Reader] = macroR[QASRLValidationPrompt[SID]]
+  implicit def writer[SID: Writer] = macroW[QASRLValidationPrompt[SID]]
+}

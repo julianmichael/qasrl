@@ -110,7 +110,7 @@ import monocle.macros._
   private[this] def appendAll[F[_]: Foldable](fs: F[String]): StateT[List, List[String], Unit] =
     fs.foldM[StateT[List, List[String], ?], Unit](()) { case (_, s) => append(s) }
   private[this] def choose[F[_]: Foldable, A](as: F[A]): StateT[List, List[String], A] =
-    StateT.lift[List, List[String], A](as.toList)
+    StateT.liftF[List, List[String], A](as.toList)
   private[this] def pass: StateT[List, List[String], Unit] =
     StateT.pure[List, List[String], Unit](())
   private[this] def abort: StateT[List, List[String], Unit] =

@@ -1,5 +1,7 @@
 package qasrl.data
 
+import scala.collection.immutable.SortedMap
+
 import cats.Monad
 import cats.Monoid
 import cats.data.Writer
@@ -13,7 +15,7 @@ import qasrl.util.implicits._
 import qasrl.util.mergeMaps
 
 @Lenses case class Dataset(
-  sentences: Map[String, Sentence]
+  sentences: SortedMap[String, Sentence]
 ) {
 
   def cullVerblessSentences = filterSentences(_.verbEntries.isEmpty)
@@ -102,7 +104,7 @@ import qasrl.util.mergeMaps
                               }
                               .map(
                                 questionLabels =>
-                                  VerbEntry(verbIndex, xv.verbInflectedForms, questionLabels.toMap)
+                                  VerbEntry(verbIndex, xv.verbInflectedForms, SortedMap(questionLabels: _*))
                               )
                           } else {
                             Writer
@@ -116,11 +118,11 @@ import qasrl.util.mergeMaps
                       )
                       .map(verbIndex -> _)
                 }
-                .map(verbEntries => Sentence(sentenceId, xe.sentenceTokens, verbEntries.toMap))
+                .map(verbEntries => Sentence(sentenceId, xe.sentenceTokens, SortedMap(verbEntries: _*)))
             }
             .map(sentenceId -> _)
       }
-      .map(sentences => Dataset(sentences.toMap))
+      .map(sentences => Dataset(SortedMap(sentences: _*)))
   }
 }
 
@@ -171,7 +173,7 @@ object Dataset {
 
   def datasetMonoid(processMergeFailures: List[DataMergeFailure] => Unit): Monoid[Dataset] =
     new Monoid[Dataset] {
-      override def empty: Dataset = Dataset(Map.empty[String, Sentence])
+      override def empty: Dataset = Dataset(SortedMap.empty[String, Sentence])
       override def combine(x: Dataset, y: Dataset) = {
         val (fails, result) = x.merge(y).run
         processMergeFailures(fails)
@@ -194,8 +196,10 @@ object Dataset {
     .composeIso(Iso[Set[String], List[String]](_.toList)(_.toSet))
     .composeTraversal(Optics.each)
 
-  val answerLabels = questionLabels
+  val answerLabelSets = questionLabels
     .composeLens(QuestionLabel.answerJudgments)
+
+  val answerLabels = answerLabelSets
     .composeIso(Iso[Set[AnswerLabel], List[AnswerLabel]](_.toList)(_.toSet))
     .composeTraversal(Optics.each)
 

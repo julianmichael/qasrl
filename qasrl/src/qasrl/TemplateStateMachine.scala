@@ -35,12 +35,12 @@ object TemplateStateMachine {
   type TemplateTransition = (String, StateT[Option, FrameState, TemplateState])
 
   def pure[A](a: A) = StateT.pure[Option, FrameState, A](a)
-  def abort[A] = StateT.lift[Option, FrameState, A](None)
+  def abort[A] = StateT.liftF[Option, FrameState, A](None)
   def get = StateT.get[Option, FrameState]
   def set(fs: FrameState) = StateT.set[Option, FrameState](fs)
   def modify(f: FrameState => FrameState) = StateT.modify[Option, FrameState](f)
   def modFrame(f: Frame => Frame) = StateT.modify[Option, FrameState](FrameState.frame.modify(f))
-  def lift[A](aOpt: Option[A]) = StateT.lift[Option, FrameState, A](aOpt)
+  def lift[A](aOpt: Option[A]) = StateT.liftF[Option, FrameState, A](aOpt)
 
   def progress(first: TemplateTransition, rest: TemplateTransition*) = TemplateProgress(
     NonEmptyList.of(first, rest: _*)

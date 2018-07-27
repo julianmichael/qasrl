@@ -18,7 +18,8 @@ abstract class QASRLEvaluationDispatcher[SID: Reader: Writer](
 
   lazy val evalClient = new QASRLEvaluationClient[SID](evaluationInstructions)
 
-  final override lazy val taskMapping =
-    Map[String, () => Unit](settings.evaluationTaskKey -> evalClient.main)
+  final override lazy val taskMapping = Map[String, () => Unit](
+    settings.evaluationTaskKey -> (() => evalClient.main)
+  )
 
 }

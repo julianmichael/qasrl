@@ -93,4 +93,8 @@ object QASRLValidationAnswer {
     case Answer(spans) =>
       spans.map(span => Text.renderSpan(sentence, (span.begin to span.end).toSet)).mkString(" / ")
   }
+
+  import upickle.default._
+  implicit val reader = Reader.merge[QASRLValidationAnswer](macroR[InvalidQuestion.type], macroR[Answer])
+  implicit val writer = Writer.merge[QASRLValidationAnswer](macroW[InvalidQuestion.type], macroW[Answer])
 }

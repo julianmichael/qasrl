@@ -137,13 +137,19 @@ class QASRLGenerationClient[SID: Reader: Writer](instructions: VdomTag)(
   class FullUIBackend(scope: BackendScope[Unit, State]) {
 
     // mutable backend stuff
-    val allInputRefs = mutable.Map.empty[Int, html.Element]
+    val allInputRefs = mutable.Map.empty[Int, Ref[html.Element, html.Element]]
+    def getInputRef(i: Int) = {
+      allInputRefs.get(i) match {
+        case None =>
+          val res = Ref[html.Element]
+          allInputRefs.put(i, res)
+          res
+        case Some(ref) => ref
+      }
+    }
+
     var isBlurEnabled: Boolean = true
-
     def setBlurEnabled(b: Boolean) = Callback(isBlurEnabled = b)
-
-    def setInputRef(qaIndex: Int): html.Element => Unit =
-      (element: html.Element) => allInputRefs.put(qaIndex, element)
 
     def updateQAState(qaIndex: Int)(s: State): State = {
       val template = s.template
@@ -177,7 +183,7 @@ class QASRLGenerationClient[SID: Reader: Writer](instructions: VdomTag)(
 
     def moveToNextQuestion: Callback = scope.state.flatMap { s =>
       s.curFocus.foldMap { curQuestion =>
-        Callback(allInputRefs((curQuestion + 1) % s.qas.size).focus)
+        getInputRef((curQuestion + 1) % s.qas.size).foreach(_.focus())
       }
     }
 
@@ -309,13 +315,13 @@ class QASRLGenerationClient[SID: Reader: Writer](instructions: VdomTag)(
                     ^.onFocus --> scope.modState(State.curFocus.set(Some(qaIndex))),
                     ^.onBlur --> (
                       if (isBlurEnabled) scope.modState(State.curFocus.set(None))
-                      else Callback(allInputRefs(qaIndex).focus)
+                      else getInputRef(qaIndex).foreach(_.focus())
                     ),
                     ^.value := question
-                  ).ref(setInputRef(qaIndex)),
+                  ).withRef(getInputRef(qaIndex)),
                   (for {
                     Autocomplete.Incomplete(suggestions, badStartIndexOpt) <- autocompleteResultOpt
-                    ref                                                    <- allInputRefs.get(qaIndex)
+                    ref                                                    <- scala.util.Try(getInputRef(qaIndex).unsafeGet).toOption
                   } yield {
                     val rect = ref.getBoundingClientRect
                     val width = math.round(rect.width)
@@ -398,7 +404,7 @@ class QASRLGenerationClient[SID: Reader: Writer](instructions: VdomTag)(
                   )
               } else
                 <.span(
-                  ^.onClick --> (Callback(allInputRefs(qaIndex).focus)),
+                  ^.onClick --> (getInputRef(qaIndex).foreach(_.focus())),
                   answersString
                 )
             }
