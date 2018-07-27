@@ -9,7 +9,7 @@ val thisScalaJSVersion = "0.6.23"
 val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
-val qasrlVersion = "0.1.0"
+val qasrlVersion = "0.1.1-SNAPSHOT"
 
 // cats and react libs -- make sure versions match up
 val catsVersion = "1.1.0"
@@ -76,10 +76,6 @@ trait ExampleModule extends ScalaModule with ScalafmtModule {
     "-deprecation",
     "-feature",
     "-language:higherKinds"
-  )
-
-  def repositories = super.repositories ++ Seq(
-    MavenRepository("https://oss.sonatype.org/content/repositories/snapshots")
   )
 
   def ivyDeps = Agg(
