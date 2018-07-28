@@ -12,34 +12,30 @@ There are currently three projects in this repository.
 
 ## Usage
 
-This project is built with [Mill](http://lihaoyi.com/mill).
-I haven't published this code on Maven yet, so the recommended way to use it is to publish locally
-from source, i.e., clone this repository and run `mill __.publishLocal` in the repository root.
-Once that is done, you can play around with the example project in `qasrl-crowd-example`, possibly
-copying it elsewhere and modifying it to fit your needs.
-
-If you just want the base QA-SRL tools (e.g., autocomplete), do this then include
+Relevant imports for this project are as follows:
 ```
-  libraryDependencies += "org.julianmichael" %%% "nlpdata" % "0.1.0"
-  libraryDependencies += "org.julianmichael" %%% "qasrl" % "0.1.0-SNAPSHOT"
+  libraryDependencies += "org.julianmichael" %%% "nlpdata" % "0.2.0"
+  libraryDependencies += "org.julianmichael" %%% "qasrl" % "0.1.0"
+  libraryDependencies += "org.julianmichael" %%% "qasrl-crowd" % "0.1.0"
 ```
 in your sbt project settings, or 
 ```
-  "org.julianmichael::nlpdata::0.1.0",
-  ivy"org.julianmichael::qasrl::0.1.0-SNAPSHOT"
+  ivy"org.julianmichael::nlpdata::0.2.0",
+  ivy"org.julianmichael::qasrl::0.1.0",
+  ivy"org.julianmichael::qasrl-crowd::0.1.0"
 ```
 in your Mill `ivyDeps`.
 You then need to download the Wiktionary data and place it somewhere accessible by your project
 so you can inflect verbs.
 
+To run the scripts and example project in this repo, you need
+[Mill](http://www.lihaoyi.com/mill/index.html) version 0.2.5 or later.
+
 ### Running the example project
 
-After locally publishing the `qasrl` and `qasrl-crowd` projects, run
-`qasrl-crowd-example/scripts/setup.sh`.
+Run `qasrl-crowd-example/scripts/setup.sh`.
 This will prompt you to download the Wiktionary dataset, which you should do.
 Then run `qasrl-crowd-example/scripts/run_crowd_example.sh`.
-Currently, you need to be using the latest nightly build of Mill,
-though any version after 0.2.3 should work.
 
 ### Autocomplete
 
