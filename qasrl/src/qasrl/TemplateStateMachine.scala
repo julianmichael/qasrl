@@ -316,11 +316,11 @@ class TemplateStateMachine(
       preposition <- lift(fs.preposition)
       _           <- markAnswerSlot(Obj2, makePrepForWhObject(preposition))
     } yield qMark),
-    " someone" -> (for { // prep has animate placeholder obj
-      fs          <- get
-      preposition <- lift(fs.preposition)
-      _           <- markPlaceholderSlot(Obj2, Prep(preposition, Some(Noun(true))))
-    } yield qMark),
+    // " someone" -> (for { // prep has animate placeholder obj
+    //   fs          <- get
+    //   preposition <- lift(fs.preposition)
+    //   _           <- markPlaceholderSlot(Obj2, Prep(preposition, Some(Noun(true))))
+    // } yield qMark),
     " something" -> (for { // prep has inanimate placeholder obj
       fs          <- get
       preposition <- lift(fs.preposition)

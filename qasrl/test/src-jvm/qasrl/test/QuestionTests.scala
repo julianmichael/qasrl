@@ -24,13 +24,13 @@ class QuestionTests extends FunSuite with Matchers {
 
   test("reference questions can be read from resources") {
     inside(questionsTry) {
-      case Success(lines) => lines should have size 13621
+      case Success(lines) => lines should have size 13616
     }
   }
 
   val questions = questionsTry.get
 
-  val genericInflectedForms= InflectedForms(
+  val genericInflectedForms = InflectedForms(
     stem = "stem".lowerCase,
     present = "present".lowerCase,
     presentParticiple = "presentParticiple".lowerCase,
@@ -66,16 +66,37 @@ class QuestionTests extends FunSuite with Matchers {
     template.processStringFully(question)
   }
 
+  // val pairedProcessingDiffs = {
+  //   questions.map(q => processQuestionOld(q) -> processQuestion(q)).filter(Function.tupled(_ != _))
+  // }
+  // println(s"${pairedProcessingDiffs.size} differences between old and new: ")
+  // pairedProcessingDiffs.foreach { case (old, cur) =>
+  //   // def str(s: List[CompleteState]) = s.map(s => s.frame.args.toString + ": " + s.answerSlot.toString).map("  " + _).mkString("\n")
+  //   println(s"Old:\n${old}")
+  //   println(s"Cur:\n${cur}")
+  //   println
+  // }
+
   val processedQuestionResults = questions.map(processQuestion)
 
-  val (invalidStates, goodStates) = processedQuestionResults.separate
+  val (invalidQuestionsWithStates, goodQuestionsWithStates) = (questions.zip(processedQuestionResults)).map {
+    case (q, Left(x)) => Left(q -> x)
+    case (q, Right(x)) => Right(q -> x)
+  }.separate
+  val (invalidQuestions, invalidStates) = invalidQuestionsWithStates.unzip
+  val (goodQuestions, goodStates) = goodQuestionsWithStates.unzip
 
   val splitGoodStates = goodStates.map(
     _.map(QuestionProcessor.ValidState.eitherIso.get).toList.separate
   )
 
   test("all reference questions are valid") {
-    invalidStates should have size 0
+    val x = invalidQuestions.isEmpty
+    val questionsWord = if(invalidStates.size == 1) "question" else "questions"
+    assert(x) withClue (
+      s"for ${invalidQuestions.size} $questionsWord:\n" +
+        invalidQuestions.take(10).map("  " + _).mkString("\n")
+    )
   }
 
   test("no reference questions are incomplete") {
@@ -91,13 +112,13 @@ class QuestionTests extends FunSuite with Matchers {
   }
 
   test("all complete states should reproduce the reference question text") {
-    questions.zip(completeStates).foreach { case (q, state) =>
+    goodQuestions.zip(completeStates).foreach { case (q, state) =>
       state.foreach(_.fullText shouldEqual q)
     }
   }
 
   val completeStatesReferenceHist = Map(
-    1 -> 10887,
+    1 -> 10882,
     2 -> 2599,
     3 -> 135
   )
@@ -107,8 +128,10 @@ class QuestionTests extends FunSuite with Matchers {
     completeStatesHist shouldEqual completeStatesReferenceHist
   }
 
+  import QuestionProcessor.CompleteState
+
   // val _completeStatesOld = {
-  //   val processedQuestionResultsOld = questions.map(processQuestionOld)
+  //   val processedQuestionResultsOld = goodQuestions.map(processQuestionOld)
   //   val (invalidStatesOld, goodStatesOld) = processedQuestionResultsOld.separate
   //   val splitGoodStatesOld = goodStatesOld.map(
   //     _.map(QuestionProcessor.ValidState.eitherIso.get).toList.separate
@@ -116,14 +139,12 @@ class QuestionTests extends FunSuite with Matchers {
   //   splitGoodStatesOld.map(_._2)
   // }
 
-  // differences between new and old
+  // // differences between new and old
   // val stateDiffs = _completeStatesOld.zip(completeStates).filter {
   //   case (old, cur) => old != cur
   // }
 
-  import QuestionProcessor.CompleteState
-
-  // TODO: wait until we change this as well
+  // // TODO: wait until we change this as well
   // println(s"${stateDiffs.size} differences between old and new: ")
   // stateDiffs.foreach { case (old, cur) =>
   //   def str(s: List[CompleteState]) = s.map(s => s.frame.args.toString + ": " + s.answerSlot.toString).map("  " + _).mkString("\n")
@@ -211,6 +232,9 @@ class QuestionTests extends FunSuite with Matchers {
     s.prep.map(_.toString).exists(p => p.endsWith(" to") || p == "to") &&
       s.obj2.map(_.toString).exists(o => o.startsWith("do ") || o == "do")
   }
+  val hasDoSomeone = (s: SlotBasedLabel[LowerCaseString]) => {
+    s.obj2.exists(o => o == "do someone".lowerCase || o == "doing someone".lowerCase)
+  }
 
   val slotsPassMuster =  (s: SlotBasedLabel[LowerCaseString]) =>
     !(prepHasWhitespace(s) || prepIsWhitespace(s) || prepContainsDo(s) || toDoIsSplit(s))
@@ -257,5 +281,9 @@ class QuestionTests extends FunSuite with Matchers {
 
   test("\"to do\" is not split between slots") {
     assertNoSatisfyingSlots(toDoIsSplit)
+  }
+
+  test("\"do/doing someone\" never appears") {
+    assertNoSatisfyingSlots(hasDoSomeone)
   }
 }
