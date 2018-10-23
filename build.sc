@@ -31,6 +31,10 @@ val scalajsDomVersion = "0.9.6"
 val scalajsJqueryVersion = "0.9.3"
 val scalajsScalaCSSVersion = "0.5.3"
 
+val scalatestVersion = "3.0.5"
+val scalacheckVersion = "1.13.5"
+val disciplineVersion = "0.9.0"
+
 trait JvmPlatform {
   def platformSegment: String = "jvm"
 }
@@ -40,7 +44,7 @@ trait JsPlatform extends ScalaJSModule {
   def scalaJSVersion = thisScalaJSVersion
 }
 
-trait CommonModule extends CrossScalaModule with ScalafmtModule {
+trait CommonModule extends ScalaModule with ScalafmtModule {
 
   def platformSegment: String
 
@@ -74,7 +78,7 @@ trait CommonModule extends CrossScalaModule with ScalafmtModule {
 
 }
 
-trait CommonPublishModule extends CommonModule with PublishModule {
+trait CommonPublishModule extends CrossScalaModule with CommonModule with PublishModule {
   def publishVersion = thisPublishVersion
   def pomSettings = PomSettings(
     description = artifactName(),
@@ -91,6 +95,16 @@ trait CommonPublishModule extends CommonModule with PublishModule {
 trait QasrlModule extends CommonPublishModule {
   def millSourcePath = build.millSourcePath / "qasrl"
   def artifactName = "qasrl"
+
+  object test extends Tests with CommonModule {
+    def platformSegment = QasrlModule.this.platformSegment
+    def ivyDeps = Agg(
+      ivy"org.scalatest::scalatest:$scalatestVersion",
+      ivy"org.scalacheck::scalacheck:$scalacheckVersion",
+      ivy"org.typelevel::discipline:$disciplineVersion"
+    )
+    def testFrameworks = Seq("org.scalatest.tools.Framework")
+  }
 }
 
 object qasrl extends Module {
