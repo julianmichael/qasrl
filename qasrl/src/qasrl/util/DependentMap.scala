@@ -40,6 +40,13 @@ final class DependentMap[F[_], G[_]] private (private val map: Map[F[_], G[_]]) 
       override def apply[A](fa: F[A]): Option[G[A]] =
         get(fa)
     }
+
+  override def equals(that: Any): Boolean = that match {
+    case that: DependentMap[_, _] => this.map == that.map
+    case _ => false
+  }
+
+  override def hashCode: Int = map.hashCode
 }
 
 object DependentMap {

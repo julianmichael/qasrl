@@ -109,7 +109,7 @@ object SlotBasedLabel {
     allAuxes.map(_.lowerCase)
   }
 
-  def getSlotsForQuestionStructure(frame: Frame, answerSlot: ArgumentSlot): SlotBasedLabel[LowerCaseString] = {
+  def getSlotsForQuestionStructureOld(frame: Frame, answerSlot: ArgumentSlot): SlotBasedLabel[LowerCaseString] = {
     val wh = {
       val whStr = answerSlot match {
         case Subj => if (frame.args.get(Subj).get.isAnimate) "who" else "what"
@@ -185,6 +185,95 @@ object SlotBasedLabel {
                 Some(preposition) -> Some(
                   (if (isAnimate) "someone" else "something").lowerCase
                 )
+            case Prep(preposition, None) =>
+              Some(preposition) -> None
+            case Locative => None -> Some("somewhere".lowerCase)
+          }
+      }
+    }
+    SlotBasedLabel(wh, aux, subj, verbPrefix, verb, obj, prep, obj2)
+  }
+
+  def getSlotsForQuestionStructure(frame: Frame, answerSlot: ArgumentSlot): SlotBasedLabel[LowerCaseString] = {
+    val wh = {
+      val whStr = answerSlot match {
+        case Subj => if (frame.args.get(Subj).get.isAnimate) "who" else "what"
+        case Obj  => if (frame.args.get(Obj).get.isAnimate) "who" else "what"
+        case Obj2 =>
+          frame.args.get(Obj2).get match {
+            case Noun(isAnimate)                => if (isAnimate) "who" else "what"
+            case Prep(_, Some(Noun(isAnimate))) => if (isAnimate) "who" else "what"
+            case Locative                       => "where"
+            case _                              => "what" // extra case for objless prep; shouldn't happen
+          }
+        case Adv(wh) => wh.toString
+      }
+      whStr.lowerCase
+    }
+    val subj = {
+      if (answerSlot == Subj) None
+      else
+        frame.args.get(Subj).map {
+          case Noun(isAnimate) =>
+            (if (isAnimate) "someone" else "something").lowerCase
+        }
+    }
+    val verbStack = if (subj.isEmpty) {
+      frame.getVerbStack.map(_.lowerCase)
+    } else {
+      frame.splitVerbStackIfNecessary(frame.getVerbStack).map(_.lowerCase)
+    }
+    val (aux, verbTokens) = NonEmptyList
+      .fromList(verbStack.tail)
+      .filter(_ => mainAuxVerbs.contains(verbStack.head)) match {
+      case None       => None                 -> verbStack
+      case Some(tail) => Some(verbStack.head) -> tail
+    }
+    val verbPrefix = verbTokens.init
+    val verb = verbTokens.last
+
+    val obj = {
+      if (answerSlot == Obj) None
+      else
+        frame.args.get(Obj).map {
+          case Noun(isAnimate) =>
+            (if (isAnimate) "someone" else "something").lowerCase
+        }
+    }
+
+    def getPrepAndMiscPrefix(prepString: LowerCaseString) = {
+      val prepTokens = prepString.split(" ").toList
+      prepTokens.reverse match {
+        case (doWord @ ("do"|"doing")) :: "to" :: rest =>
+          val prep = if(rest.isEmpty) None else Some(rest.reverse.mkString(" ").lowerCase)
+          val miscPrefix = Some(s"to $doWord".lowerCase)
+          prep -> miscPrefix
+        case (doWord @ ("do"|"doing")) :: rest =>
+          val prep = if(rest.isEmpty) None else Some(rest.reverse.mkString(" ").lowerCase)
+          val miscPrefix = Some(doWord.lowerCase)
+          prep -> miscPrefix
+        case _ => Some(prepString) -> None
+      }
+    }
+
+    val (prep, obj2) = {
+      frame.args
+        .get(Obj2)
+        .fold(Option.empty[LowerCaseString] -> Option.empty[LowerCaseString]) {
+        arg =>
+        if (answerSlot == Obj2) arg match {
+          case Noun(isAnimate) => None -> None
+          case Prep(preposition, _) => getPrepAndMiscPrefix(preposition)
+          case Locative => None -> None
+        } else
+          arg match {
+            case Noun(isAnimate) =>
+              None -> Some((if (isAnimate) "someone" else "something").lowerCase)
+            case Prep(preposition, Some(Noun(isAnimate))) =>
+              val (_prep, miscPrefix) = getPrepAndMiscPrefix(preposition)
+              val miscObj = if(isAnimate) "someone" else "something"
+              val _misc = Some((miscPrefix.fold("")(_.toString + " ") + miscObj).lowerCase)
+              _prep -> _misc
             case Prep(preposition, None) =>
               Some(preposition) -> None
             case Locative => None -> Some("somewhere".lowerCase)
