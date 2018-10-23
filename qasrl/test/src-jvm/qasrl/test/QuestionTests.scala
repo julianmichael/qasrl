@@ -179,33 +179,41 @@ class QuestionTests extends FunSuite with Matchers {
 
   val slotLists = completeStates.map(_.map(s => SlotBasedLabel.getSlotsForQuestionStructure(s.frame, s.answerSlot)))
 
-  // differences between new and old
-  val _slotListsOld = completeStates.map(_.map(s => SlotBasedLabel.getSlotsForQuestionStructureOld(s.frame, s.answerSlot)))
-  val slotDiffs = _slotListsOld.zip(slotLists).filter {
-    case (old, cur) => old != cur
+  test("slots are deterministic for a question") {
+    val nonDeterministicSlotLists = slotLists.map(_.toSet)
+      .filter(_.size != 1) // 95 left
+      .filter { slotSet =>
+      slotSet.toList match {
+        // remove the case where obj and obj2 are switched with an empty prep in between
+        case fst :: snd :: Nil =>
+          !(
+            fst.prep.isEmpty && snd.prep.isEmpty && fst.obj == snd.obj2 && snd.obj == fst.obj2 && (
+              fst.copy(obj = snd.obj, obj2 = snd.obj2) == snd
+            )
+          )
+        case _ => true
+      }
+    }
+    val questionsWord = if(nonDeterministicSlotLists.size == 1) "question" else "questions"
+    val x = nonDeterministicSlotLists.isEmpty
+    assert(x) withClue (
+      s"for ${nonDeterministicSlotLists.size} $questionsWord:\n" +
+        nonDeterministicSlotLists.take(10).map(_.map(_.renderWithSeparator(identity, ",")).mkString("\t")).map("  " + _).mkString("\n")
+    )
   }
 
-  val prepHasWhitespace = (s: SlotBasedLabel[LowerCaseString]) =>
-  s.prep.exists(p => p.toString != p.trim)
-  val prepIsWhitespace = (s: SlotBasedLabel[LowerCaseString]) =>
-  s.prep.exists(_.trim == "")
-  val prepContainsDo =   (s: SlotBasedLabel[LowerCaseString]) =>
-  s.prep.exists(_.toString.endsWith("do")) ||
-    s.prep.exists(_.toString.endsWith("doing"))
-  val toDoIsSplit = (s: SlotBasedLabel[LowerCaseString]) =>
-  s.prep.map(_.toString).exists(p => p.endsWith(" to") || p == "to") &&
-    s.obj2.map(_.toString).exists(o => o.startsWith("do ") || o == "do")
+  val prepHasWhitespace = (s: SlotBasedLabel[LowerCaseString]) => s.prep.exists(p => p.toString != p.trim)
+  val prepIsWhitespace = (s: SlotBasedLabel[LowerCaseString]) => s.prep.exists(_.trim == "")
+  val prepContainsDo =   (s: SlotBasedLabel[LowerCaseString]) => {
+    s.prep.exists(_.toString.endsWith("do")) || s.prep.exists(_.toString.endsWith("doing"))
+  }
+  val toDoIsSplit = (s: SlotBasedLabel[LowerCaseString]) => {
+    s.prep.map(_.toString).exists(p => p.endsWith(" to") || p == "to") &&
+      s.obj2.map(_.toString).exists(o => o.startsWith("do ") || o == "do")
+  }
 
   val slotsPassMuster =  (s: SlotBasedLabel[LowerCaseString]) =>
     !(prepHasWhitespace(s) || prepIsWhitespace(s) || prepContainsDo(s) || toDoIsSplit(s))
-
-  println(s"${slotDiffs.size} differences between old and new slots.")
-  slotDiffs.filter(_._1.exists(slotsPassMuster)).take(50).foreach { case (old, cur) =>
-    def str(s: List[SlotBasedLabel[LowerCaseString]]) = s.map(s => s.renderWithSeparator(identity, ",")).mkString("\t")
-    println(s"Old: ${str(old)}")
-    println(s"Cur: ${str(cur)}")
-    println
-  }
 
   def getSatisfyingSlotLists(p: SlotBasedLabel[LowerCaseString] => Boolean) = {
     slotLists.map(_.filter(p)).filter(_.nonEmpty)

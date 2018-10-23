@@ -198,6 +198,12 @@ object SlotBasedLabel {
     SlotBasedLabel(wh, aux, subj, verbPrefix, verb, obj, prep, obj2)
   }
 
+  def getPreferredCompleteState(states: NonEmptyList[QuestionProcessor.ValidState]) = {
+    // prioritize a frame with Obj (but no Obj2) over one with Obj2 (but no Obj)
+    val completeStates = states.collect { case cs @ QuestionProcessor.CompleteState(_, _, _) => cs }
+    completeStates.find(_.frame.args.get(Obj).nonEmpty).orElse(completeStates.headOption)
+  }
+
   val getSlotsForQuestion = QuestionLabelMapper(
     (
       sentenceTokens: Vector[String],
@@ -222,11 +228,10 @@ object SlotBasedLabel {
           val resOpt = template.processStringFully(question) match {
             case Left(QuestionProcessor.AggregatedInvalidState(_, _)) => None
             case Right(goodStates) =>
-              goodStates.toList
-                .collect { case QuestionProcessor.CompleteState(_, frame, answerSlot) =>
-                  getSlotsForQuestionStructure(frame, answerSlot) }
-                .toSet
-                .headOption
+              val completeStateOpt = getPreferredCompleteState(goodStates)
+              completeStateOpt.map(s =>
+                getSlotsForQuestionStructure(s.frame, s.answerSlot)
+              )
           }
           resOpt.map(question -> _)
       }.toMap: Map[String, SlotBasedLabel[LowerCaseString]]
@@ -259,16 +264,12 @@ object SlotBasedLabel {
       val (question, rawSlots) = pair
       val frameWithAnswerSlotOpt = template.processStringFully(question) match {
         case Left(QuestionProcessor.AggregatedInvalidState(_, _)) => None
-        case Right(goodStates) =>
-          goodStates.toList.collect {
-            case QuestionProcessor.CompleteState(_, frame, answerSlot) => frame -> answerSlot
-          }.headOption
+        case Right(goodStates) => getPreferredCompleteState(goodStates)
       }
       frameWithAnswerSlotOpt.map {
-        case (firstFrame, answerSlot) =>
+        case QuestionProcessor.CompleteState(_, frame, answerSlot) =>
           rawSlots.copy(
-            verb =
-              firstFrame.getVerbConjugation(firstFrame.args.get(Subj).isEmpty || answerSlot != Subj)
+            verb = frame.getVerbConjugation(frame.args.get(Subj).isEmpty || answerSlot != Subj)
           )
       }
     }
