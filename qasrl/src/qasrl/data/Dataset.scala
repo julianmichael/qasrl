@@ -18,10 +18,20 @@ import qasrl.util.mergeMaps
   sentences: SortedMap[String, Sentence]
 ) {
 
-  def cullVerblessSentences = filterSentences(_.verbEntries.isEmpty)
+  def cullVerblessSentences = filterSentences(_.verbEntries.nonEmpty)
 
   def cullQuestionlessSentences =
-    filterSentences(_.verbEntries.values.forall(_.questionLabels.isEmpty))
+    filterSentences(s => !s.verbEntries.values.forall(_.questionLabels.isEmpty))
+
+  def cullQuestionlessVerbs = Dataset(
+    sentences.map { case (sid, sentence) =>
+      sid -> sentence.copy(
+        verbEntries = sentence.verbEntries.filter {
+          case (_, verbEntry) => verbEntry.questionLabels.nonEmpty
+        }
+      )
+    }
+  )
 
   def filterSentenceIds(predicate: String => Boolean) = Dataset(
     sentences.filter(e => predicate(e._1))
