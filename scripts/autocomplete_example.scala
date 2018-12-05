@@ -48,8 +48,8 @@ def run = {
   // to produce question suggestions
   var completeQuestions = Set.empty[QuestionProcessor.CompleteState]
   var done = false
-  while(in.hasNextLine && !done) {
-    val qPrefix = in.nextLine
+  while(!done) {
+    val qPrefix = scala.io.StdIn.readLine
     if(qPrefix == "exit") {
       done = true
     } else {
