@@ -54,11 +54,11 @@ To understand how to set everything up so it works on MTurk,
 adapt the instructions [here](https://github.com/uwnlp/qamr/tree/master/code)
 to the local code. To trace the main entry points:
 
- * [`scripts/crowd_example.scala`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/scripts/crowd_example.scala)
+ * [`scripts/crowd_example.scala`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd-example/scripts/crowd_example.scala)
    is what you run on the SBT console to get started.
- * That creates an [`AnnotationSetup`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd-example/jvm/src/main/scala/example/AnnotationSetup.scala) object defined in `qasrl-crowd-example`,
+ * That creates an [`AnnotationSetup`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd-example/example/src-jvm/example/AnnotationSetup.scala) object defined in `qasrl-crowd-example`,
    which assembles the various data and resources needed for the crowdsourcing pipeline.
- * That creates a [`QASRLAnnotationPipeline`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd/jvm/src/main/scala/qasrl/crowd/QASRLAnnotationPipeline.scala) object,
+ * That creates a [`QASRLAnnotationPipeline`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd/src-jvm/qasrl/crowd/QASRLAnnotationPipeline.scala) object,
    which creates the web services and interfaces with MTurk to upload and download data and assess workers.
  * Finally, telling the `QASRLAnnotationPipeline` object to `start()` will start the crowdsourcing task.
  
