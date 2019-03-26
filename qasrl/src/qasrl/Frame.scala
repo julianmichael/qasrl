@@ -169,6 +169,16 @@ import monocle.macros._
     }
     qStateT.runS(List.empty[String]).map(_.reverse.mkString(" ") + "?")
   }
+
+  def clauses = {
+    val qStateT = {
+      renderNecessaryNoun(Subj) >>
+        renderAuxThroughVerb(includeSubject = false) >>
+        renderArgIfPresent(Obj) >>
+        renderArgIfPresent(Obj2)
+    }
+    qStateT.runS(List.empty[String]).map(_.reverse.mkString(" "))
+  }
 }
 
 object Frame {

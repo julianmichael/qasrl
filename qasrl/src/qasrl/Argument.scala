@@ -1,8 +1,12 @@
 package qasrl
 
 import nlpdata.util.LowerCaseStrings._
+import qasrl.util.implicits.{lowerCaseStringEncoder, lowerCaseStringDecoder}
 
-sealed trait Argument {
+import io.circe.generic.JsonCodec
+import monocle.macros.Lenses
+
+@JsonCodec sealed trait Argument {
   def placeholder: List[String]
   def gap: Option[String]
   def wh: Option[String]
@@ -23,15 +27,16 @@ sealed trait Argument {
   }
 }
 
-case class Noun(
+@JsonCodec @Lenses case class Noun(
   isAnimate: Boolean
 ) extends Argument {
   override def placeholder = List(if (isAnimate) "someone" else "something")
   override def gap = None
   override def wh = if (isAnimate) Some("Who") else Some("What")
 }
+object Noun
 
-case class Prep(
+@JsonCodec @Lenses case class Prep(
   preposition: LowerCaseString,
   objOpt: Option[Noun]
 ) extends Argument {
@@ -39,9 +44,12 @@ case class Prep(
   override def gap = Some(preposition)
   override def wh = objOpt.flatMap(_.wh)
 }
+object Prep
 
 case object Locative extends Argument {
   override def placeholder = List("somewhere")
   override def gap = None
   override def wh = Some("Where")
 }
+
+object Argument

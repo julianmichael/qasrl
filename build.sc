@@ -3,7 +3,7 @@ import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
 
-val thisPublishVersion = "0.1.1-SNAPSHOT"
+val thisPublishVersion = "0.1.2-SNAPSHOT"
 
 val scalaVersions = List("2.11.12", "2.12.6")
 val thisScalaJSVersion = "0.6.23"
@@ -16,7 +16,7 @@ val catsVersion = "1.1.0"
 val scalajsReactVersion = "1.2.3"
 val spacroVersion = "0.2.0"
 val nlpdataVersion = "0.2.0"
-val circeVersion = "0.9.3"
+val circeVersion = "0.11.1"
 val monocleVersion = "1.5.1-cats"
 
 // end cats libs

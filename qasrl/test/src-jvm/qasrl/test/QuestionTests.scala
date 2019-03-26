@@ -286,4 +286,6 @@ class QuestionTests extends FunSuite with Matchers {
   test("\"do/doing someone\" never appears") {
     assertNoSatisfyingSlots(hasDoSomeone)
   }
+
+  // TODO: test that you only take slots where there is an obj and no obj2 or whatever
 }
