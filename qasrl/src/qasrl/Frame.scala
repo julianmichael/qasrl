@@ -105,79 +105,112 @@ import monocle.macros._
       }
   }
 
-  private[this] def append(word: String): StateT[List, List[String], Unit] =
-    StateT.modify[List, List[String]](word :: _)
-  private[this] def appendAll[F[_]: Foldable](fs: F[String]): StateT[List, List[String], Unit] =
-    fs.foldM[StateT[List, List[String], ?], Unit](()) { case (_, s) => append(s) }
-  private[this] def choose[F[_]: Foldable, A](as: F[A]): StateT[List, List[String], A] =
-    StateT.liftF[List, List[String], A](as.toList)
-  private[this] def pass: StateT[List, List[String], Unit] =
-    StateT.pure[List, List[String], Unit](())
-  private[this] def abort: StateT[List, List[String], Unit] =
-    choose(List[Unit]())
+  type ArgMap[A] = Map[ArgumentSlot, A]
 
-  private[this] def renderNecessaryNoun(slot: ArgumentSlot.Aux[Noun]) = args.get(slot) match {
-    case None       => choose(List("someone", "something")) >>= append
-    case Some(noun) => appendAll(noun.placeholder)
+  private[this] def append[A](a: A): StateT[List, List[Either[String, A]], Unit] =
+    StateT.modify[List, List[Either[String, A]]](Right(a) :: _)
+  private[this] def appendString[A](word: String): StateT[List, List[Either[String, A]], Unit] =
+    StateT.modify[List, List[Either[String, A]]](Left(word) :: _)
+  private[this] def appendEither[A](e: Either[String, A]): StateT[List, List[Either[String, A]], Unit] =
+    StateT.modify[List, List[Either[String, A]]](e :: _)
+  private[this] def appendAllStrings[F[_]: Foldable, A](fs: F[String]): StateT[List, List[Either[String, A]], Unit] =
+    fs.foldM[StateT[List, List[Either[String, A]], ?], Unit](()) { case (_, s) => appendString(s) }
+  private[this] def appendAll[F[_]: Foldable, A](fs: F[Either[String, A]]): StateT[List, List[Either[String, A]], Unit] =
+    fs.foldM[StateT[List, List[Either[String, A]], ?], Unit](()) { case (_, s) => appendEither(s) }
+  private[this] def choose[A, B](as: List[A]): StateT[List, List[Either[String, B]], A] =
+    StateT.liftF[List, List[Either[String, B]], A](as)
+  private[this] def pass[A]: StateT[List, List[Either[String, A]], Unit] =
+    StateT.pure[List, List[Either[String, A]], Unit](())
+  // private[this] def abort[A]: StateT[List, List[Either[String, A]], Unit] =
+  //   choose[Unit, A](List[Unit]())
+
+  private[this] def renderNecessaryNoun[A](slot: ArgumentSlot.Aux[Noun], argValues: ArgMap[A]) = args.get(slot) match {
+    case None       => choose[String, A](List("someone", "something")) >>= appendString[A]
+    case Some(noun) => argValues.get(slot).fold(appendAllStrings[List, A](noun.placeholder))(append[A])
   }
 
-  private[this] def renderWhNoun(slot: ArgumentSlot.Aux[Noun]) = args.get(slot) match {
-    case None       => choose(List("Who", "What")) >>= append
-    case Some(noun) => choose(noun.wh) >>= append
+  private[this] def renderWhNoun[A](slot: ArgumentSlot.Aux[Noun]) = args.get(slot) match {
+    case None       => choose[String, A](List("Who", "What")) >>= appendString[A]
+    case Some(noun) => choose[String, A](noun.wh.toList) >>= appendString[A]
   }
 
-  private[this] def renderWhOrAbort[Arg <: Argument](slot: ArgumentSlot.Aux[Arg]) =
-    choose(args.get(slot) >>= (_.wh)) >>= append
+  private[this] def renderWhOrAbort[Arg <: Argument, A](slot: ArgumentSlot.Aux[Arg]) =
+    choose[String, A]((args.get(slot) >>= (_.wh)).toList) >>= appendString[A]
 
-  private[this] def renderArgIfPresent[Arg <: Argument](slot: ArgumentSlot.Aux[Arg]) =
-    appendAll(args.get(slot).toList >>= (_.placeholder))
+  // TODO do the un-gap thing in the arguments to get "to do" and "doing" rendering correct more properly
+  val doPlaceholders = Set("do", "doing")
+  def getUngap(gap: Option[String]) = gap.toList.flatMap(_.split(" ").toList.filter(s => !doPlaceholders.contains(s)))
+  private[this] def renderArgIfPresent[Arg <: Argument, A](slot: ArgumentSlot.Aux[Arg], argValues: ArgMap[A]) =
+    args.get(slot).fold(pass[A])(argSlotValue =>
+      argValues.get(slot).fold(appendAllStrings[List, A](argSlotValue.gap.toList ++ argSlotValue.placeholder))(argMapValue =>
+        appendAll[List, A](getUngap(argSlotValue.gap).map(Left[String, A](_)) ++ List(Right[String, A](argMapValue)))
+      )
+    )
 
-  private[this] def renderGap[Arg <: Argument](slot: ArgumentSlot.Aux[Arg]) =
-    appendAll(args.get(slot) >>= (_.gap))
+  private[this] def renderGap[Arg <: Argument, A](slot: ArgumentSlot.Aux[Arg]) =
+    appendAllStrings[List, A](args.get(slot).toList >>= (_.gap.toList))
 
-  private[this] def renderAuxThroughVerb(includeSubject: Boolean) = {
+  private[this] def renderAuxThroughVerb[A](includeSubject: Boolean, argValues: ArgMap[A]) = {
     val verbStack = getVerbStack
     if (includeSubject) {
       val splitVerbStack = splitVerbStackIfNecessary(verbStack)
       val (aux, verb) = (splitVerbStack.head, splitVerbStack.tail)
-      append(aux) >> renderNecessaryNoun(Subj) >> appendAll(verb)
-    } else appendAll(verbStack)
+      appendString[A](aux) >> renderNecessaryNoun(Subj, argValues) >> appendAllStrings[List, A](verb)
+    } else appendAllStrings[NonEmptyList, A](verbStack)
   }
 
-  def questionsForSlot(slot: ArgumentSlot) = {
+  def questionsForSlot(slot: ArgumentSlot) = questionsForSlotWithArgs(slot, Map())
+  def questionsForSlotWithArgs(slot: ArgumentSlot, argMap: ArgMap[String]) = {
     val qStateT = slot match {
       case Subj =>
-        renderWhNoun(Subj) >>
-        renderAuxThroughVerb(includeSubject = false) >>
-        renderArgIfPresent(Obj) >>
-        renderArgIfPresent(Obj2)
+        renderWhNoun[String](Subj) >>
+        renderAuxThroughVerb(includeSubject = false, argMap) >>
+        renderArgIfPresent(Obj, argMap) >>
+        renderArgIfPresent(Obj2, argMap)
       case Obj =>
-        renderWhNoun(Obj) >>
-        renderAuxThroughVerb(includeSubject = true) >>
+        renderWhNoun[String](Obj) >>
+        renderAuxThroughVerb(includeSubject = true, argMap) >>
         renderGap(Obj) >>
-        renderArgIfPresent(Obj2)
+        renderArgIfPresent(Obj2, argMap)
       case Obj2 =>
-        renderWhOrAbort(Obj2) >>
-        renderAuxThroughVerb(includeSubject = true) >>
-        renderArgIfPresent(Obj) >>
+        renderWhOrAbort[Argument, String](Obj2) >>
+        renderAuxThroughVerb(includeSubject = true, argMap) >>
+        renderArgIfPresent(Obj, argMap) >>
         renderGap(Obj2)
       case Adv(wh) =>
-        append(wh.toString.capitalize) >>
-        renderAuxThroughVerb(includeSubject = true) >>
-        renderArgIfPresent(Obj) >>
-        renderArgIfPresent(Obj2)
+        append[String](wh.toString.capitalize) >>
+        renderAuxThroughVerb(includeSubject = true, argMap) >>
+        renderArgIfPresent(Obj, argMap) >>
+        renderArgIfPresent(Obj2, argMap)
     }
-    qStateT.runS(List.empty[String]).map(_.reverse.mkString(" ") + "?")
+    qStateT.runS(List.empty[Either[String, String]]).map(_.reverse.map(_.merge).mkString(" ") + "?")
+  }
+
+  def genClausesWithArgs[A](
+    argValues: Map[ArgumentSlot, A]
+  ): List[List[Either[String, A]]] = {
+    val qStateT = {
+      renderNecessaryNoun(Subj, argValues) >>
+        renderAuxThroughVerb(includeSubject = false, argValues) >>
+        renderArgIfPresent(Obj  , argValues) >>
+        renderArgIfPresent(Obj2, argValues)
+    }
+    qStateT.runS(List.empty[Either[String, A]]).map(_.reverse)
+  }
+
+  def clausesWithArgMarkers = {
+    genClausesWithArgs(args.keys.map(a => a.asInstanceOf[ArgumentSlot.Aux[Argument]]).map(a => a -> a).toMap)
   }
 
   def clauses = {
-    val qStateT = {
-      renderNecessaryNoun(Subj) >>
-        renderAuxThroughVerb(includeSubject = false) >>
-        renderArgIfPresent(Obj) >>
-        renderArgIfPresent(Obj2)
-    }
-    qStateT.runS(List.empty[String]).map(_.reverse.mkString(" "))
+    genClausesWithArgs[String](Map()).map(_.map(_.merge).mkString(" "))
+    // val qStateT = {
+    //   renderNecessaryNoun(Subj) >>
+    //     renderAuxThroughVerb(includeSubject = false) >>
+    //     renderArgIfPresent(Obj) >>
+    //     renderArgIfPresent(Obj2)
+    // }
+    // qStateT.runS(List.empty[String]).map(_.reverse.mkString(" "))
   }
 }
 

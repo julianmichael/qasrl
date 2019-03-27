@@ -117,6 +117,18 @@ class QuestionTests extends FunSuite with Matchers {
     }
   }
 
+  test("all complete frames should produce a singleton list of questions") {
+    goodQuestions.zip(completeStates).foreach { case (q, state) =>
+      state.foreach(s => s.frame.questionsForSlot(s.answerSlot).size shouldEqual 1)
+    }
+  }
+
+  test("all complete frames should reproduce the source question") {
+    goodQuestions.zip(completeStates).foreach { case (q, state) =>
+      state.foreach(s => s.frame.questionsForSlot(s.answerSlot).foreach(_ shouldEqual q))
+    }
+  }
+
   val completeStatesReferenceHist = Map(
     1 -> 10882,
     2 -> 2599,

@@ -98,6 +98,10 @@ trait QasrlModule extends CommonPublishModule {
 
   object test extends Tests with CommonModule {
     def platformSegment = QasrlModule.this.platformSegment
+    override def sources = T.sources {
+      super.sources() ++
+        CrossModuleBase.scalaVersionPaths(crossScalaVersion, s => millSourcePath / s"src-$platformSegment-$s" )
+    }
     def ivyDeps = Agg(
       ivy"org.scalatest::scalatest:$scalatestVersion",
       ivy"org.scalacheck::scalacheck:$scalacheckVersion",

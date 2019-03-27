@@ -40,7 +40,7 @@ object Noun
   preposition: LowerCaseString,
   objOpt: Option[Noun]
 ) extends Argument {
-  override def placeholder = preposition.toString :: objOpt.toList.flatMap(_.placeholder)
+  override def placeholder = objOpt.toList.flatMap(_.placeholder)
   override def gap = Some(preposition)
   override def wh = objOpt.flatMap(_.wh)
 }
