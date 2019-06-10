@@ -1,14 +1,10 @@
 package qasrl.crowd
 
-import spacro.util.Span
+import jjm.ISpan
+import io.circe.generic.JsonCodec
 
-case class VerbQA(
+@JsonCodec case class VerbQA(
   verbIndex: Int,
   question: String, // should be guaranteed to adhere to QA-SRL format
-  answers: List[Span] // should not overlap
+  answers: List[ISpan] // should not overlap
 )
-object VerbQA {
-  import upickle.default._
-  implicit val reader = macroR[VerbQA]
-  implicit val writer = macroW[VerbQA]
-}

@@ -1,10 +1,12 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.implicits._
+// import jjm.implicits._
 
 import cats.implicits._
 
-case class QASRLValidationResponseComparison(
+import io.circe.generic.JsonCodec
+
+@JsonCodec case class QASRLValidationResponseComparison(
   thisResponse: QASRLValidationAnswer,
   otherResponses: List[(String, QASRLValidationAnswer)]
 ) {
@@ -18,14 +20,9 @@ case class QASRLValidationResponseComparison(
         otherResponses.map(_._2.agreesWith(thisResponse)).filter(identity).size + 1.0
       ) >= ((otherResponses.size + 1) / 2.0) // is a majority (or tie)
 }
-object QASRLValidationResponseComparison {
-  import upickle.default._
-  implicit val reader = macroR[QASRLValidationResponseComparison]
-  implicit val writer = macroW[QASRLValidationResponseComparison]
-}
 
 /** Data structure to keep track of a single worker's stats on the validation task. */
-case class QASRLValidationWorkerInfo(
+@JsonCodec case class QASRLValidationWorkerInfo(
   workerId: String,
   numAssignmentsCompleted: Int,
   numAnswerSpans: Int,
@@ -110,7 +107,4 @@ case class QASRLValidationWorkerInfo(
 
 object QASRLValidationWorkerInfo {
   def empty(workerId: String) = QASRLValidationWorkerInfo(workerId, 0, 0, 0, Nil, 0, 0L, 0.0)
-  import upickle.default._
-  implicit val reader = macroR[QASRLValidationWorkerInfo]
-  implicit val writer = macroW[QASRLValidationWorkerInfo]
 }

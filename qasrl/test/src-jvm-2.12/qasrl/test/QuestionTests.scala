@@ -3,8 +3,9 @@ package qasrl.test
 import qasrl._
 import qasrl.labeling.SlotBasedLabel
 
-import nlpdata.datasets.wiktionary.InflectedForms
-import nlpdata.util.LowerCaseStrings._
+import jjm.LowerCaseString
+import jjm.ling.en.InflectedForms
+import jjm.implicits._
 
 import cats.implicits._
 

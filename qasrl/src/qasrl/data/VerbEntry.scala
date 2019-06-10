@@ -5,10 +5,8 @@ import scala.collection.immutable.SortedMap
 import cats.Monad
 import cats.implicits._
 
-import nlpdata.datasets.wiktionary.InflectedForms
-
-import qasrl.util.implicits._
-import qasrl.util.mergeMaps
+import jjm.ling.en.InflectedForms
+import jjm.implicits._
 
 import monocle.macros.Lenses
 
@@ -27,7 +25,7 @@ import monocle.macros.Lenses
         s"Can only combine same verb; attempted to combine indices $thisVerbString and $otherVerbString "
       )
     } else {
-      mergeMaps(questionLabels, other.questionLabels).toList
+      questionLabels.merge(other.questionLabels).toList
         .traverse[Either[String, ?], (String, QuestionLabel)] {
           case (qStr, qLabelIor) =>
             qLabelIor.mergeM[Either[String, ?]](_ combineWithLike _).map(qStr -> _)

@@ -3,27 +3,30 @@ import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
 
-val thisPublishVersion = "0.1.2-SNAPSHOT"
+val thisPublishVersion = "0.2.0-SNAPSHOT"
 
-val scalaVersions = List("2.11.12", "2.12.6")
-val thisScalaJSVersion = "0.6.23"
+val scalaVersions = List("2.12.8")
+val thisScalaJSVersion = "0.6.27"
 
 val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
 // cats and react libs -- make sure versions match up
-val catsVersion = "1.1.0"
-val scalajsReactVersion = "1.2.3"
-val spacroVersion = "0.2.0"
-val nlpdataVersion = "0.2.0"
-val circeVersion = "0.11.1"
-val monocleVersion = "1.5.1-cats"
+val jjmVersion = "0.1.0-SNAPSHOT"
+val spacroVersion = "0.3.0-SNAPSHOT"
+val radhocVersion = "0.2.0-SNAPSHOT"
+// val catsVersion = "1.1.0"
+val scalajsReactVersion = "1.4.2"
+// val spacroVersion = "0.2.0"
+// val nlpdataVersion = "0.2.0"
+// val circeVersion = "0.11.1"
+// val monocleVersion = "1.5.1-cats"
 
 // end cats libs
 
-val upickleVersion = "0.5.1"
+// val upickleVersion = "0.5.1"
 
-val akkaActorVersion = "2.4.20"
+// val akkaActorVersion = "2.4.20"
 val scalaLoggingVersion = "3.5.0"
 val slf4jApiVersion = "1.7.21"
 
@@ -62,13 +65,14 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
   )
 
   def ivyDeps = Agg(
-    ivy"org.julianmichael::nlpdata::$nlpdataVersion",
-    ivy"org.typelevel::cats-core::$catsVersion",
-    ivy"com.github.julien-truffaut::monocle-core::$monocleVersion",
-    ivy"com.github.julien-truffaut::monocle-macro::$monocleVersion",
-    ivy"io.circe::circe-core::$circeVersion",
-    ivy"io.circe::circe-generic::$circeVersion",
-    ivy"io.circe::circe-parser::$circeVersion"
+    ivy"org.julianmichael::jjm-core::$jjmVersion",
+    // ivy"org.julianmichael::nlpdata::$nlpdataVersion",
+    // ivy"org.typelevel::cats-core::$catsVersion",
+    // ivy"com.github.julien-truffaut::monocle-core::$monocleVersion",
+    // ivy"com.github.julien-truffaut::monocle-macro::$monocleVersion",
+    // ivy"io.circe::circe-core::$circeVersion",
+    // ivy"io.circe::circe-generic::$circeVersion",
+    // ivy"io.circe::circe-parser::$circeVersion"
   )
 
   def scalacPluginIvyDeps = super.scalacPluginIvyDeps() ++ Agg(
@@ -123,7 +127,7 @@ trait QasrlCrowdModule extends CommonPublishModule {
   def artifactName = "qasrl-crowd"
   def ivyDeps = super.ivyDeps() ++ Agg(
     ivy"org.julianmichael::spacro::$spacroVersion",
-    ivy"com.lihaoyi::upickle::$upickleVersion"
+    // ivy"com.lihaoyi::upickle::$upickleVersion"
   )
 }
 
@@ -132,7 +136,7 @@ object `qasrl-crowd` extends Module {
   class QasrlCrowdJvmModule(val crossScalaVersion: String) extends QasrlCrowdModule with JvmPlatform {
     def moduleDeps = Seq(qasrl.jvm())
     def ivyDeps = super.ivyDeps() ++ Agg(
-      ivy"com.typesafe.akka::akka-actor::$akkaActorVersion",
+      // ivy"com.typesafe.akka::akka-actor::$akkaActorVersion",
       ivy"com.typesafe.scala-logging::scala-logging::$scalaLoggingVersion",
       ivy"org.slf4j:slf4j-api:$slf4jApiVersion" // decided to match scala-logging transitive dep
     )
@@ -141,6 +145,7 @@ object `qasrl-crowd` extends Module {
   class QasrlCrowdJSModule(val crossScalaVersion: String) extends QasrlCrowdModule with JsPlatform {
     def moduleDeps = Seq(qasrl.js())
     def ivyDeps = super.ivyDeps() ++ Agg(
+      ivy"org.julianmichael::radhoc::$radhocVersion",
       ivy"org.scala-js::scalajs-dom::$scalajsDomVersion",
       ivy"be.doeraene::scalajs-jquery::$scalajsJqueryVersion",
       ivy"com.github.japgolly.scalajs-react::core::$scalajsReactVersion",

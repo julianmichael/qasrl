@@ -1,20 +1,17 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.implicits._
+// import jjm.implicits._
 
 import cats.implicits._
 
-case class AccuracyJudgment(
+import io.circe.JsonCodec
+
+@JsonCodec case class AccuracyJudgment(
   validatorId: String,
   isValid: Boolean
 )
-object AccuracyJudgment {
-  import upickle.default._
-  implicit val reader = macroR[AccuracyJudgment]
-  implicit val writer = macroW[AccuracyJudgment]
-}
 
-case class QASRLGenerationWorkerStats(
+@JsonCodec case class QASRLGenerationWorkerStats(
   workerId: String,
   numValidatorJudgments: Int,
   numAssignmentsCompleted: Int,
@@ -53,10 +50,5 @@ case class QASRLGenerationWorkerStats(
 }
 
 object QASRLGenerationWorkerStats {
-
   def empty(workerId: String) = QASRLGenerationWorkerStats(workerId, 0, 0, Vector.empty[AccuracyJudgment], 0, 0.0)
-
-  import upickle.default._
-  implicit val reader = macroR[QASRLGenerationWorkerStats]
-  implicit val writer = macroW[QASRLGenerationWorkerStats]
 }

@@ -1,19 +1,17 @@
 package qasrl.labeling
 
 import qasrl._
-import qasrl.util._
-import qasrl.util.implicits._
+
+import jjm.LowerCaseString
+import jjm.ling.Text
+import jjm.ling.en._
+import jjm.implicits._
 
 import cats.Id
 import cats.Functor
 import cats.arrow.Arrow
 import cats.data.NonEmptyList
 import cats.implicits._
-
-import nlpdata.datasets.wiktionary.InflectedForms
-import nlpdata.datasets.wiktionary.VerbForm
-import nlpdata.util.LowerCaseStrings._
-import nlpdata.util.Text
 
 import scala.util.Try
 

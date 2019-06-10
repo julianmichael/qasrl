@@ -1,12 +1,11 @@
 package qasrl
 
-import qasrl.util.implicits._
+import jjm.LowerCaseString
+import jjm.implicits._
 
 import cats.Order
 import cats.data.Ior
 import cats.data.NonEmptyList
-
-import nlpdata.util.LowerCaseStrings._
 
 import QuestionProcessor.InProgressState
 import QuestionProcessor.ValidState

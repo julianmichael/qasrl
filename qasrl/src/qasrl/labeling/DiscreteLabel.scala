@@ -1,15 +1,15 @@
 package qasrl.labeling
 
 import qasrl._
-import qasrl.util._
+
+import jjm.LowerCaseString
+import jjm.ling.en.InflectedForms
+import jjm.implicits._
 
 import cats.Id
 import cats.implicits._
 import cats.arrow.Arrow
 import cats.data.NonEmptyList
-
-import nlpdata.datasets.wiktionary.InflectedForms
-import nlpdata.util.LowerCaseStrings._
 
 sealed trait DiscreteLabel {
   def label: LowerCaseString

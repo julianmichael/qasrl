@@ -1,7 +1,7 @@
 package qasrl
 
-import nlpdata.util.LowerCaseStrings._
-import qasrl.util.implicits._
+import jjm.LowerCaseString
+import jjm.implicits._
 
 import io.circe.generic.JsonCodec
 

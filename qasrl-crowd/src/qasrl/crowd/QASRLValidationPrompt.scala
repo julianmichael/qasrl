@@ -1,6 +1,6 @@
 package qasrl.crowd
 
-case class QASRLValidationPrompt[SID](
+@JsonCodec case class QASRLValidationPrompt[SID](
   genPrompt: QASRLGenerationPrompt[SID],
   sourceHITTypeId: String,
   sourceHITId: String,
@@ -8,9 +8,4 @@ case class QASRLValidationPrompt[SID](
   qaPairs: List[VerbQA]
 ) {
   def id = genPrompt.id
-}
-object QASRLValidationPrompt {
-  import upickle.default._
-  implicit def reader[SID: Reader] = macroR[QASRLValidationPrompt[SID]]
-  implicit def writer[SID: Writer] = macroW[QASRLValidationPrompt[SID]]
 }

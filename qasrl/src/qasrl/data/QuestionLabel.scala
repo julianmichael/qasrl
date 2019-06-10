@@ -5,8 +5,8 @@ import monocle.macros.Lenses
 import qasrl.Tense
 import qasrl.labeling.SlotBasedLabel
 
-import nlpdata.util.LowerCaseStrings._
-import nlpdata.datasets.wiktionary.VerbForm
+import jjm.ling.en.VerbForm
+import jjm.implicits._
 
 @Lenses case class QuestionLabel(
   questionString: String,

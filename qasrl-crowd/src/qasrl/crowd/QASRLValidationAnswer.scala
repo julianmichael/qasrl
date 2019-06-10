@@ -1,20 +1,20 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.implicits._
-
-import spacro.util.Span
+import jjm.Span
+import jjm.ling.Text
+// import jjm.implicits._
 
 import cats.implicits._
-
-import nlpdata.util.Text
 
 import monocle._
 import monocle.macros._
 
+import io.circe.generic.JsonCodec
+
 /** Represents a validator response about a question:
   * either it has an answer, or is invalid
   */
-sealed trait QASRLValidationAnswer {
+@JsonCodec sealed trait QASRLValidationAnswer {
 
   def isInvalid = this match {
     case InvalidQuestion => true
@@ -45,8 +45,8 @@ sealed trait QASRLValidationAnswer {
     case _ => false
   }
 }
-case object InvalidQuestion extends QASRLValidationAnswer
-@Lenses case class Answer(spans: List[Span]) extends QASRLValidationAnswer
+@JsonCodec case object InvalidQuestion extends QASRLValidationAnswer
+@Lenses @JsonCodec case class Answer(spans: List[Span]) extends QASRLValidationAnswer
 
 object QASRLValidationAnswer {
   val invalidQuestion = GenPrism[QASRLValidationAnswer, InvalidQuestion.type]
@@ -93,8 +93,4 @@ object QASRLValidationAnswer {
     case Answer(spans) =>
       spans.map(span => Text.renderSpan(sentence, (span.begin to span.end).toSet)).mkString(" / ")
   }
-
-  import upickle.default._
-  implicit val reader = Reader.merge[QASRLValidationAnswer](macroR[InvalidQuestion.type], macroR[Answer])
-  implicit val writer = Writer.merge[QASRLValidationAnswer](macroW[InvalidQuestion.type], macroW[Answer])
 }

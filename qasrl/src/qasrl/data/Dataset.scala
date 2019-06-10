@@ -11,8 +11,7 @@ import monocle.Iso
 import monocle.macros.{GenPrism, Lenses}
 import monocle.function.{all => Optics}
 
-import qasrl.util.implicits._
-import qasrl.util.mergeMaps
+import jjm.implicits._
 
 @Lenses case class Dataset(
   sentences: SortedMap[String, Sentence]
@@ -72,19 +71,19 @@ import qasrl.util.mergeMaps
   def merge(that: Dataset): Writer[List[Dataset.DataMergeFailure], Dataset] = {
     val allKeys = this.sentences.keySet ++ that.sentences.keySet
     type Fails = List[Dataset.DataMergeFailure]
-    mergeMaps(this.sentences, that.sentences).toList
+    this.sentences.merge(that.sentences).toList
       .traverse[Writer[Fails, ?], (String, Sentence)] {
         case (sentenceId, sentenceEntryIor) =>
           sentenceEntryIor
             .mergeM[Writer[Fails, ?]] { (xe, ye) =>
-              mergeMaps(xe.verbEntries, ye.verbEntries).toList
+              xe.verbEntries.merge(ye.verbEntries).toList
                 .traverse[Writer[Fails, ?], (Int, VerbEntry)] {
                   case (verbIndex, verbEntryIor) =>
                     verbEntryIor
                       .mergeM[Writer[Fails, ?]](
                         (xv, yv) =>
                           if (xv.verbIndex == yv.verbIndex && xv.verbInflectedForms == yv.verbInflectedForms) {
-                            mergeMaps(xv.questionLabels, yv.questionLabels).toList
+                            xv.questionLabels.merge(yv.questionLabels).toList
                               .traverse[Writer[Fails, ?], (String, QuestionLabel)] {
                                 case (questionString, questionLabelIor) =>
                                   questionLabelIor

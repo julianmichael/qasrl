@@ -3,8 +3,8 @@ package qasrl.labeling
 import cats.arrow.Arrow
 import cats.implicits._
 
-import nlpdata.datasets.wiktionary.InflectedForms
-import nlpdata.util.LowerCaseStrings._
+import jjm.ling.en.InflectedForms
+import jjm.implicits._
 
 /** Class for mapping QA-SRL questions to other forms (and back).
   * Works on a set of labels for a verb all at a time, to allow for reconstructing full questions

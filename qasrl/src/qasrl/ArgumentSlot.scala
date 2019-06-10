@@ -1,15 +1,23 @@
 package qasrl
 
-import nlpdata.util.LowerCaseStrings._
+import jjm.DependentEncoder
+import jjm.DependentDecoder
+import jjm.DotEncoder
+import jjm.DotDecoder
+import jjm.DotKleisli
+import jjm.LowerCaseString
+import jjm.implicits._
 
-sealed trait ArgumentSlot { type Arg }
-case object Subj extends ArgumentSlot { type Arg = Noun }
-case object Obj extends ArgumentSlot { type Arg = Noun }
-case object Obj2 extends ArgumentSlot { type Arg = Argument }
-case class Adv(wh: LowerCaseString) extends ArgumentSlot { type Arg = Unit }
+import cats.Id
+
+sealed trait ArgumentSlot { type Out }
+case object Subj extends ArgumentSlot { type Out = Noun }
+case object Obj extends ArgumentSlot { type Out = Noun }
+case object Obj2 extends ArgumentSlot { type Out = Argument }
+case class Adv(wh: LowerCaseString) extends ArgumentSlot { type Out = Unit }
 
 object ArgumentSlot {
-  type Aux[A] = ArgumentSlot { type Arg = A }
+  type Aux[A] = ArgumentSlot { type Out = A }
 
   def allAdvSlots =
     List("when", "where", "why", "how", "how long", "how much").map(s => Adv(s.lowerCase))
@@ -40,12 +48,8 @@ object ArgumentSlot {
   implicit val argumentSlotKeyEncoder = KeyEncoder.instance(ArgumentSlot.toString)
   implicit val argumentSlotKeyDecoder = KeyDecoder.instance(ArgumentSlot.fromString)
 
-  import qasrl.util.DependentMap
-  import qasrl.util.implicits.{DependentEncoder, DependentDecoder}
-  import cats.Id
-
-  implicit val dependentArgumentEncoder = new DependentEncoder[ArgumentSlot.Aux, Id] {
-    final def getEncoder[A](slot: ArgumentSlot.Aux[A]) = slot match {
+  implicit val argumentDependentEncoder = new DependentEncoder[ArgumentSlot.Aux, Id] {
+    final def apply[A](slot: ArgumentSlot.Aux[A]) = slot match {
       case Subj   => implicitly[Encoder[Noun]]
       case Obj    => implicitly[Encoder[Noun]]
       case Obj2   => implicitly[Encoder[Argument]]
@@ -53,12 +57,30 @@ object ArgumentSlot {
     }
   }
 
-  implicit val dependentArgumentDecoder = new DependentDecoder[ArgumentSlot.Aux, Id] {
-    final def getDecoder[A](slot: ArgumentSlot.Aux[A]) = slot match {
+  implicit val argumentDependentDecoder = new DependentDecoder[ArgumentSlot.Aux, Id] {
+    final def apply[A](slot: ArgumentSlot.Aux[A]) = slot match {
       case Subj   => implicitly[Decoder[Noun]]
       case Obj    => implicitly[Decoder[Noun]]
       case Obj2   => implicitly[Decoder[Argument]]
       case Adv(_) => implicitly[Decoder[Unit]].asInstanceOf[Decoder[A]] // TODO this should be acceptable w/o cast?
     }
   }
+
+  // implicit val argumentDotEncoder = new DotKleisli[Encoder, ArgumentSlot] {
+  //   final def apply(slot: ArgumentSlot) = slot match {
+  //     case Subj   => implicitly[Encoder[Noun]]
+  //     case Obj    => implicitly[Encoder[Noun]]
+  //     case Obj2   => implicitly[Encoder[Argument]]
+  //     case Adv(_) => implicitly[Encoder[Unit]] // TODO this should be acceptable w/o cast?
+  //   }
+  // }
+
+  // implicit val argumentDotDecoder = new DotKleisli[Decoder, ArgumentSlot] {
+  //   final def apply(slot: ArgumentSlot) = slot match {
+  //     case Subj   => implicitly[Decoder[Noun]]
+  //     case Obj    => implicitly[Decoder[Noun]]
+  //     case Obj2   => implicitly[Decoder[Argument]]
+  //     case Adv(_) => implicitly[Decoder[Unit]] // TODO this should be acceptable w/o cast?
+  //   }
+  // }
 }

@@ -1,21 +1,15 @@
 package qasrl.data
 
+import jjm.LowerCaseString
+import jjm.ling.en._
+import jjm.implicits._
+
 import cats.Monoid
 import cats.Monad
 import cats.implicits._
 
 import qasrl._
 import qasrl.labeling.SlotBasedLabel
-import qasrl.util.mergeMaps
-
-import nlpdata.datasets.wiktionary.InflectedForms
-import nlpdata.util.LowerCaseStrings._
-import nlpdata.datasets.wiktionary.VerbForm
-import nlpdata.datasets.wiktionary.Stem
-import nlpdata.datasets.wiktionary.PresentSingular3rd
-import nlpdata.datasets.wiktionary.PresentParticiple
-import nlpdata.datasets.wiktionary.Past
-import nlpdata.datasets.wiktionary.PastParticiple
 
 import io.circe._
 

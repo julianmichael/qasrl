@@ -1,91 +1,78 @@
 package qasrl
 
-import spacro.tasks.ResponseRW
+import jjm.DotKleisli
+import jjm.{DotEncoder, DotDecoder}
+import jjm.ling.en.InflectedForms
 
-import nlpdata.datasets.wiktionary.InflectedForms
+import io.circe.{Encoder, Decoder}
+import io.circe.JsonCodec
 
-import upickle.default._
+// import nlpdata.datasets.wiktionary.InflectedForms
+
+// import upickle.default._
 
 package object crowd {
 
-  import nlpdata.util.LowerCaseStrings._
+  def dollarsToCents(d: Double): Int = math.round(100 * d).toInt
 
-  implicit val lowerCaseStringReader = upickle.default.Reader[LowerCaseString] {
-    case upickle.Js.Str(s) => s.toString.lowerCase // just for typing. whatever
-  }
-  implicit val lowerCaseStringWriter = upickle.default.Writer[LowerCaseString] {
-    case s => upickle.Js.Str(s.toString)
-  }
-  implicit val inflectedFormsReader = macroR[InflectedForms]
-  implicit val inflectedFormsWriter = macroW[InflectedForms]
+  // import nlpdata.util.LowerCaseStrings._
 
-  case class QASRLGenerationPrompt[SID](id: SID, verbIndex: Int)
-  object QASRLGenerationPrompt {
-    implicit def reader[SID: Reader] = macroR[QASRLGenerationPrompt[SID]]
-    implicit def writer[SID: Writer] = macroW[QASRLGenerationPrompt[SID]]
-  }
+  @JsonCodec case class QASRLGenerationPrompt[SID](id: SID, verbIndex: Int)
 
-  case class GenerationStatSummary(
+  @JsonCodec case class GenerationStatSummary(
     numVerbsCompleted: Int, // before validation: used to calculate coverage
     numQuestionsWritten: Int, // before validation: "
     workerStatsOpt: Option[QASRLGenerationWorkerStats]
   )
-  object GenerationStatSummary {
-    implicit val reader = macroR[GenerationStatSummary]
-    implicit val writer = macroW[GenerationStatSummary]
-  }
 
-  case class QASRLGenerationAjaxRequest[SID](
+  @JsonCodec case class QASRLGenerationAjaxRequest[SID](
     workerIdOpt: Option[String],
     prompt: QASRLGenerationPrompt[SID]
   ) {
     type Response = QASRLGenerationAjaxResponse
   }
 
-  case class QASRLGenerationAjaxResponse(
+  @JsonCodec case class QASRLGenerationAjaxResponse(
     stats: GenerationStatSummary,
     tokens: Vector[String],
     inflectedForms: InflectedForms
   )
-  object QASRLGenerationAjaxResponse {
-    implicit val reader = macroR[QASRLGenerationAjaxResponse]
-    implicit val writer = macroW[QASRLGenerationAjaxResponse]
-  }
 
   object QASRLGenerationAjaxRequest {
-    import upickle.default._
-    implicit def responseRW[SID] = new ResponseRW[QASRLGenerationAjaxRequest[SID]] {
-      override def getReader(request: QASRLGenerationAjaxRequest[SID]) =
-        QASRLGenerationAjaxResponse.reader
-      override def getWriter(request: QASRLGenerationAjaxRequest[SID]) =
-        QASRLGenerationAjaxResponse.writer
+    implicit def generationAjaxRequestDotEncoder[SID]: DotEncoder[QASRLGenerationAjaxRequest[SID]] = {
+      new DotKleisli[Encoder, QASRLGenerationAjaxRequest[SID]] {
+        def apply(request: QASRLGenerationAjaxRequest[SID]) =
+            implicitly[Encoder[QASRLGenerationAjaxResponse]]
+      }
     }
-    implicit def reader[SID: Reader] = macroR[QASRLGenerationAjaxRequest[SID]]
-    implicit def writer[SID: Writer] = macroW[QASRLGenerationAjaxRequest[SID]]
+    implicit def generationAjaxRequestDotDecoder[SID]: DotDecoder[QASRLGenerationAjaxRequest[SID]] = {
+      new DotKleisli[Decoder, QASRLGenerationAjaxRequest[SID]] {
+        def apply(request: QASRLGenerationAjaxRequest[SID]) =
+          implicitly[Decoder[QASRLGenerationAjaxResponse]]
+      }
+    }
   }
 
-  case class QASRLValidationAjaxResponse(
+  @JsonCodecs case class QASRLValidationAjaxResponse(
     workerInfoOpt: Option[QASRLValidationWorkerInfoSummary],
     sentence: Vector[String]
   )
-  object QASRLValidationAjaxResponse {
-    implicit val reader = macroR[QASRLValidationAjaxResponse]
-    implicit val writer = macroW[QASRLValidationAjaxResponse]
-  }
 
-  case class QASRLValidationAjaxRequest[SID](workerIdOpt: Option[String], id: SID) {
+  @JsonCodec case class QASRLValidationAjaxRequest[SID](workerIdOpt: Option[String], id: SID) {
     type Response = QASRLValidationAjaxResponse
   }
   object QASRLValidationAjaxRequest {
-    import upickle.default._
-    implicit def responseRW[SID] = new ResponseRW[QASRLValidationAjaxRequest[SID]] {
-      override def getReader(request: QASRLValidationAjaxRequest[SID]) =
-        QASRLValidationAjaxResponse.reader
-      override def getWriter(request: QASRLValidationAjaxRequest[SID]) =
-        QASRLValidationAjaxResponse.writer
+    implicit def validationAjaxRequestDotEncoder[SID]: DotEncoder[QASRLValidationAjaxRequest[SID]] = {
+      new DotKleisli[Encoder, QASRLValidationAjaxRequest[SID]] {
+        def apply(request: QASRLValidationAjaxRequest[SID]) =
+          implicitly[Encoder[QASRLValidationAjaxResponse]]
+      }
     }
-    implicit def reader[SID: Reader] = macroR[QASRLValidationAjaxRequest[SID]]
-    implicit def writer[SID: Writer] = macroW[QASRLValidationAjaxRequest[SID]]
+    implicit def validationAjaxRequestDotDecoder[SID]: DotDecoder[QASRLValidationAjaxRequest[SID]] = {
+      new DotKleisli[Decoder, QASRLValidationAjaxRequest[SID]] {
+        def apply(request: QASRLValidationAjaxRequest[SID]) =
+          implicitly[Decoder[QASRLValidationAjaxResponse]]
+      }
+    }
   }
-
 }
