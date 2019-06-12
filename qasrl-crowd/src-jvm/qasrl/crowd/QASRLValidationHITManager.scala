@@ -1,15 +1,11 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.dollarsToCents
-
 import spacro._
 import spacro.tasks._
 import spacro.util._
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-
-import upickle.default.Reader
 
 import akka.actor.ActorRef
 
@@ -20,11 +16,12 @@ import com.amazonaws.services.mturk.model.CreateWorkerBlockRequest
 import com.amazonaws.services.mturk.model.ListWorkersWithQualificationTypeRequest
 import com.amazonaws.services.mturk.model.DisassociateQualificationFromWorkerRequest
 
-import upickle.default._
-
 import com.typesafe.scalalogging.StrictLogging
 
-class QASRLValidationHITManager[SID: Reader: Writer](
+import io.circe.{Encoder, Decoder}
+import io.circe.syntax._
+
+class QASRLValidationHITManager[SID: Encoder : Decoder](
   helper: HITManager.Helper[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]],
   valDisqualificationTypeId: String,
   accuracyStatsActor: ActorRef,
@@ -79,7 +76,7 @@ class QASRLValidationHITManager[SID: Reader: Writer](
       .loadLiveData(validationPromptsFilename)
       .toOption
       .fold(List.empty[QASRLValidationPrompt[SID]])(
-        lines => read[List[QASRLValidationPrompt[SID]]](lines.mkString)
+        lines => io.circe.parser.decode[List[QASRLValidationPrompt[SID]]](lines.mkString).right.get
       )
     prompts.reverse.foreach(p => if (p.qaPairs.nonEmpty) super.addPrompt(p) else ()) // add them back while loading
     prompts
@@ -91,7 +88,7 @@ class QASRLValidationHITManager[SID: Reader: Writer](
     annotationDataService
       .loadLiveData(workerInfoFilename)
       .map(_.mkString)
-      .map(read[Map[String, QASRLValidationWorkerInfo]])
+      .map(x => io.circe.parser.decode[Map[String, QASRLValidationWorkerInfo]](x).right.get)
       .toOption
       .getOrElse {
         Map.empty[String, QASRLValidationWorkerInfo]
@@ -104,7 +101,7 @@ class QASRLValidationHITManager[SID: Reader: Writer](
     annotationDataService
       .loadLiveData(promptToAssignmentsFilename)
       .map(_.mkString)
-      .map(read[Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]])
+      .map(x => io.circe.parser.decode[Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]](x).right.get)
       .toOption
       .getOrElse {
         Map.empty[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]
@@ -117,7 +114,7 @@ class QASRLValidationHITManager[SID: Reader: Writer](
     annotationDataService
       .loadLiveData(feedbackFilename)
       .map(_.mkString)
-      .map(read[List[Assignment[List[QASRLValidationAnswer]]]])
+      .map(x => io.circe.parser.decode[List[Assignment[List[QASRLValidationAnswer]]]](x).right.get)
       .toOption
       .getOrElse(List.empty[Assignment[List[QASRLValidationAnswer]]])
 
@@ -127,32 +124,30 @@ class QASRLValidationHITManager[SID: Reader: Writer](
     annotationDataService
       .loadLiveData(blockedValidatorsFilename)
       .map(_.mkString)
-      .map(read[Set[String]])
+      .map(x => io.circe.parser.decode[Set[String]](x).right.get)
       .toOption
       .getOrElse(Set.empty[String])
 
   private[this] def save = {
     annotationDataService.saveLiveData(
       workerInfoFilename,
-      write[Map[String, QASRLValidationWorkerInfo]](allWorkerInfo)
+      (allWorkerInfo: Map[String, QASRLValidationWorkerInfo]).asJson.noSpaces
     )
     annotationDataService.saveLiveData(
       promptToAssignmentsFilename,
-      write[Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]](
-        promptToAssignments
-      )
+      (promptToAssignments: Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]).asJson.noSpaces
     )
     annotationDataService.saveLiveData(
       validationPromptsFilename,
-      write[List[QASRLValidationPrompt[SID]]](allPrompts)
+      (allPrompts: List[QASRLValidationPrompt[SID]]).asJson.noSpaces
     )
     annotationDataService.saveLiveData(
       feedbackFilename,
-      write[List[Assignment[List[QASRLValidationAnswer]]]](feedbacks)
+      (feedbacks: List[Assignment[List[QASRLValidationAnswer]]]).asJson.noSpaces
     )
     annotationDataService.saveLiveData(
       blockedValidatorsFilename,
-      write[Set[String]](blockedValidators)
+      (blockedValidators: Set[String]).asJson.noSpaces
     )
     logger.info("Validation data saved.")
   }

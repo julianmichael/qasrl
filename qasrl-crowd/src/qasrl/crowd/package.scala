@@ -29,7 +29,7 @@ package object crowd {
     workerIdOpt: Option[String],
     prompt: QASRLGenerationPrompt[SID]
   ) {
-    type Response = QASRLGenerationAjaxResponse
+    type Out = QASRLGenerationAjaxResponse
   }
 
   @JsonCodec case class QASRLGenerationAjaxResponse(
@@ -59,7 +59,7 @@ package object crowd {
   )
 
   @JsonCodec case class QASRLValidationAjaxRequest[SID](workerIdOpt: Option[String], id: SID) {
-    type Response = QASRLValidationAjaxResponse
+    type Out = QASRLValidationAjaxResponse
   }
   object QASRLValidationAjaxRequest {
     implicit def validationAjaxRequestDotEncoder[SID]: DotEncoder[QASRLValidationAjaxRequest[SID]] = {

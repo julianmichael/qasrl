@@ -1,15 +1,11 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.dollarsToCents
-
 import spacro._
 import spacro.tasks._
 import spacro.util._
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-
-import upickle.default.Reader
 
 import akka.actor.ActorRef
 
@@ -20,11 +16,11 @@ import com.amazonaws.services.mturk.model.CreateWorkerBlockRequest
 import com.amazonaws.services.mturk.model.ListWorkersWithQualificationTypeRequest
 import com.amazonaws.services.mturk.model.DisassociateQualificationFromWorkerRequest
 
-import upickle.default._
-
 import com.typesafe.scalalogging.StrictLogging
 
-class QASRLEvaluationHITManager[SID: Reader: Writer](
+import io.circe.{Encoder, Decoder}
+
+class QASRLEvaluationHITManager[SID: Encoder : Decoder](
   valDisqualificationTypeId: String,
   helper: HITManager.Helper[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]],
   numAssignmentsForPrompt: QASRLEvaluationPrompt[SID] => Int,

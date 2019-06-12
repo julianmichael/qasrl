@@ -1,6 +1,16 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.implicits._
+import jjm.ling.ISpan
+import jjm.implicits._
+
+// import nlpdata.structure._
+// import nlpdata.util.HasTokens
+// import nlpdata.util.HasTokens.ops._
+// import nlpdata.util.Text
+// import nlpdata.util.PosTags
+// import nlpdata.util.LowerCaseStrings._
+// import nlpdata.datasets.wiktionary.Inflections
+
 import qasrl.labeling.SlotBasedLabel
 
 import cats.implicits._
@@ -17,19 +27,8 @@ import com.amazonaws.services.mturk.model.CreateQualificationTypeRequest
 import com.amazonaws.services.mturk.model.AssociateQualificationWithWorkerRequest
 import com.amazonaws.services.mturk.model.DisassociateQualificationFromWorkerRequest
 
-import nlpdata.structure._
-import nlpdata.util.HasTokens
-import nlpdata.util.HasTokens.ops._
-import nlpdata.util.Text
-import nlpdata.util.PosTags
-import nlpdata.util.LowerCaseStrings._
-import nlpdata.datasets.wiktionary.Inflections
-
 import spacro._
 import spacro.tasks._
-import spacro.util.Span
-
-import upickle.default._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -37,7 +36,9 @@ import scala.collection.JavaConverters._
 
 import com.typesafe.scalalogging.StrictLogging
 
-class QASRLAnnotationPipeline[SID: Reader: Writer: HasTokens](
+import io.circe.{Encoder, Decoder}
+
+class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
   val allIds: Vector[SID], // IDs of sentences to annotate
   val posTag: Vector[String] => Vector[Word],
   numGenerationAssignmentsForPrompt: QASRLGenerationPrompt[SID] => Int,

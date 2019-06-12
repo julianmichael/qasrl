@@ -1,7 +1,7 @@
 package qasrl.crowd
 
 import qasrl.crowd.util.implicits._
-import qasrl.crowd.util.dollarsToCents
+import qasrl.crowd.dollarsToCents
 
 import spacro._
 import spacro.tasks._
@@ -19,11 +19,12 @@ import com.amazonaws.services.mturk.model.NotifyWorkersRequest
 import com.amazonaws.services.mturk.model.AssociateQualificationWithWorkerRequest
 import com.amazonaws.services.mturk.model.DisassociateQualificationFromWorkerRequest
 
-import upickle.default._
-
 import com.typesafe.scalalogging.StrictLogging
 
-class QASRLGenerationAccuracyManager[SID: Reader: Writer](genDisqualificationTypeId: String)(
+import io.circe.{Encoder, Decoder}
+import io.circe.syntax._
+
+class QASRLGenerationAccuracyManager[SID: Encoder : Decoder](genDisqualificationTypeId: String)(
   implicit annotationDataService: AnnotationDataService,
   config: TaskConfig,
   settings: QASRLSettings
@@ -38,7 +39,7 @@ class QASRLGenerationAccuracyManager[SID: Reader: Writer](genDisqualificationTyp
     annotationDataService
       .loadLiveData(workerStatsFilename)
       .map(_.mkString)
-      .map(read[Map[String, QASRLGenerationWorkerStats]])
+      .map(x => io.circe.parser.decode[Map[String, QASRLGenerationWorkerStats]](x).right.get)
       .toOption
       .getOrElse {
         Map.empty[String, QASRLGenerationWorkerStats]
@@ -55,7 +56,7 @@ class QASRLGenerationAccuracyManager[SID: Reader: Writer](genDisqualificationTyp
     Try(
       annotationDataService.saveLiveData(
         workerStatsFilename,
-        write[Map[String, QASRLGenerationWorkerStats]](allWorkerStats)
+        (allWorkerStats: Map[String, QASRLGenerationWorkerStats]).asJson.noSpaces
       )
     ).toOptionLogging(logger).foreach(_ => logger.info("Worker stats data saved."))
   }

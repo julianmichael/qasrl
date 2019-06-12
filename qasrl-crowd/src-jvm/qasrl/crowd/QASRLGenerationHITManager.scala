@@ -5,26 +5,21 @@ import cats.implicits._
 import spacro._
 import spacro.tasks._
 
-// import qamr.Pring
-// import qamr.SaveData
-// import qamr.AnnotationDataService
-
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-
-import upickle.default.Reader
 
 import akka.actor.ActorRef
 
 import com.amazonaws.services.mturk.model.AssociateQualificationWithWorkerRequest
 
-import upickle.default._
-
 import com.typesafe.scalalogging.StrictLogging
+
+import io.circe.{Encoder, Decoder}
+import io.circe.syntax._
 
 case class FlagBadSentence[SID](id: SID)
 
-class QASRLGenerationHITManager[SID: Reader: Writer](
+class QASRLGenerationHITManager[SID: Encoder : Decoder](
   helper: HITManager.Helper[QASRLGenerationPrompt[SID], List[VerbQA]],
   validationHelper: HITManager.Helper[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]],
   validationActor: ActorRef,
@@ -57,7 +52,7 @@ class QASRLGenerationHITManager[SID: Reader: Writer](
   var badSentences = annotationDataService
     .loadLiveData(badSentenceIdsFilename)
     .map(_.mkString)
-    .map(read[Set[SID]])
+    .map(x => read[Set[SID]](x).right.get)
     .toOption
     .foldK
 
@@ -76,7 +71,7 @@ class QASRLGenerationHITManager[SID: Reader: Writer](
   var coverageStats: Map[String, List[Int]] = annotationDataService
     .loadLiveData(coverageStatsFilename)
     .map(_.mkString)
-    .map(read[Map[String, List[Int]]])
+    .map(x => read[Map[String, List[Int]]](x).right.get)
     .toOption
     .getOrElse(Map.empty[String, List[Int]])
 
@@ -92,14 +87,14 @@ class QASRLGenerationHITManager[SID: Reader: Writer](
     annotationDataService
       .loadLiveData(feedbackFilename)
       .map(_.mkString)
-      .map(read[List[Assignment[List[VerbQA]]]])
+      .map(x => read[List[Assignment[List[VerbQA]]]](x).right.get)
       .toOption
       .foldK
 
   private[this] def save = {
-    annotationDataService.saveLiveData(coverageStatsFilename, write(coverageStats))
-    annotationDataService.saveLiveData(feedbackFilename, write(feedbacks))
-    annotationDataService.saveLiveData(badSentenceIdsFilename, write(badSentences))
+    annotationDataService.saveLiveData(coverageStatsFilename, coverageStats.asJson.noSpaces)
+    annotationDataService.saveLiveData(feedbackFilename, feedbacks.asJson.noSpaces)
+    annotationDataService.saveLiveData(badSentenceIdsFilename, badSentences.asJson.noSpaces)
     logger.info("Generation data saved.")
   }
 

@@ -6,9 +6,7 @@ import qasrl.labeling.SlotBasedLabel
 
 import spacro.HITInfo
 
-import nlpdata.util.HasTokens
-import nlpdata.util.HasTokens.ops._
-import nlpdata.util.LowerCaseStrings._
+import jjm.implicits._
 
 import scala.collection.immutable.SortedMap
 import scala.util.Random
@@ -16,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.StrictLogging
 
-class AnnotationDataExporter[SID: HasTokens](
+class AnnotationDataExporter[SID/*: HasTokens*/](
   experiment: QASRLAnnotationPipeline[SID]
 ) extends StrictLogging {
   import experiment.inflections

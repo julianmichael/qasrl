@@ -1,14 +1,13 @@
 package qasrl.crowd
 
+import jjm.implicits._
+
 import qasrl.TemplateStateMachine
 import qasrl.QuestionProcessor
 import qasrl.labeling.SlotBasedLabel
 
 import spacro.HITInfo
-
-import nlpdata.util.HasTokens
-import nlpdata.util.HasTokens.ops._
-import nlpdata.util.LowerCaseStrings._
+// import nlpdata.util.HasTokens
 
 import scala.collection.immutable.SortedMap
 import scala.util.Random
@@ -16,7 +15,7 @@ import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.StrictLogging
 
-class EvaluationDataExporter[SID: HasTokens](
+class EvaluationDataExporter[SID/*: HasTokens*/](
   experiment: QASRLEvaluationPipeline[SID]
 ) extends StrictLogging {
   import experiment.inflections
