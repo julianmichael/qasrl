@@ -1,15 +1,12 @@
 package qasrl.crowd
 
-import jjm.ling.ISpan
-import jjm.implicits._
+import qasrl.crowd.util.implicits._
 
-// import nlpdata.structure._
-// import nlpdata.util.HasTokens
-// import nlpdata.util.HasTokens.ops._
-// import nlpdata.util.Text
-// import nlpdata.util.PosTags
-// import nlpdata.util.LowerCaseStrings._
-// import nlpdata.datasets.wiktionary.Inflections
+import jjm.DotFunction
+import jjm.ling._
+import jjm.ling.en.Inflections
+import jjm.ling.en.PTBPosTags
+import jjm.implicits._
 
 import qasrl.labeling.SlotBasedLabel
 
@@ -38,9 +35,9 @@ import com.typesafe.scalalogging.StrictLogging
 
 import io.circe.{Encoder, Decoder}
 
-class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
+class QASRLAnnotationPipeline[SID: Encoder : Decoder, Word : HasToken : HasPos : HasIndex](
   val allIds: Vector[SID], // IDs of sentences to annotate
-  val posTag: Vector[String] => Vector[Word],
+  val getTokens: SID => Vector[Word],
   numGenerationAssignmentsForPrompt: QASRLGenerationPrompt[SID] => Int,
   annotationDataService: AnnotationDataService,
   frozenGenerationHITTypeId: Option[String] = None,
@@ -55,48 +52,45 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
 ) extends StrictLogging {
 
   def getKeyIndices(id: SID): Set[Int] = {
-    val posTaggedTokens = posTag(id.tokens)
-    posTaggedTokens
-      .collect {
-        case Word(index, pos, token) if PosTags.verbPosTags.contains(pos) =>
+    val tokens = getTokens(id)
+    tokens.collect {
+        case word if PTBPosTags.verbs.contains(word.pos) =>
           if (// detect if "have"-verb is an auxiliary
-              Inflections.haveVerbs.contains(token.lowerCase) &&
-              (posTaggedTokens
-                .lift(index + 1)
+              Inflections.haveVerbs.contains(word.token.lowerCase) &&
+              (tokens
+                .lift(word.index + 1)
                 .map(_.token.lowerCase)
                 .nonEmptyAnd(Inflections.negationWords.contains) || // negation appears directly after, or
-              posTaggedTokens
-                .drop(index + 1)
+              tokens
+                .drop(word.index + 1)
                 .forall(_.pos != "VBN") || // there is no past-participle verb afterward, or
-              posTaggedTokens
-                .drop(index + 1) // after the "have" verb,
+              tokens
+                .drop(word.index + 1) // after the "have" verb,
                 .takeWhile(_.pos != "VBN") // until the next past-participle form verb,
                 .forall(
                   w =>
-                    Inflections.negationWords.contains(w.token.lowerCase) || PosTags.adverbPosTags
+                    Inflections.negationWords.contains(w.token.lowerCase) || PTBPosTags.adverbs
                       .contains(w.pos)
                 ) // everything is an adverb or negation (though I guess negs are RB)
               )) None
           else if (// detect if "do"-verb is an auxiliary
-                   Inflections.doVerbs.contains(token.lowerCase) &&
-                   (posTaggedTokens
-                     .lift(index + 1)
+                   Inflections.doVerbs.contains(word.token.lowerCase) &&
+                   (tokens
+                     .lift(word.index + 1)
                      .map(_.token.lowerCase)
                      .nonEmptyAnd(Inflections.negationWords.contains) || // negation appears directly after, or
-                   posTaggedTokens.drop(index + 1).forall(w => w.pos != "VB" && w.pos != "VBP") || // there is no stem or non-3rd-person present verb afterward (to mitigate pos tagger mistakes), or
-                   posTaggedTokens
-                     .drop(index + 1) // after the "do" verb,
+                   tokens.drop(word.index + 1).forall(w => w.pos != "VB" && w.pos != "VBP") || // there is no stem or non-3rd-person present verb afterward (to mitigate pos tagger mistakes), or
+                   tokens
+                     .drop(word.index + 1) // after the "do" verb,
                      .takeWhile(w => w.pos != "VBP" && w.pos != "VBP") // until the next VB or VBP verb,
                      .forall(
                        w =>
                          Inflections.negationWords
-                           .contains(w.token.lowerCase) || PosTags.adverbPosTags.contains(w.pos)
+                           .contains(w.token.lowerCase) || PTBPosTags.adverbs.contains(w.pos)
                      ) // everything is an adverb or negation (though I guess negs are RB)
                    )) None
-          else inflections.getInflectedForms(token.lowerCase).map(_ => index)
-      }
-      .flatten
-      .toSet
+          else inflections.getInflectedForms(word.token.lowerCase).map(_ => word.index)
+      }.flatten.toSet
   }
 
   lazy val allPrompts: Vector[QASRLGenerationPrompt[SID]] = for {
@@ -320,8 +314,8 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
     assignmentDuration = 600L
   )
 
-  lazy val genAjaxService = new Service[QASRLGenerationAjaxRequest[SID]] {
-    override def processRequest(request: QASRLGenerationAjaxRequest[SID]) = request match {
+  lazy val genAjaxService = new DotFunction[QASRLGenerationAjaxRequest[SID]] {
+    override def apply(request: QASRLGenerationAjaxRequest[SID]) = request match {
       case QASRLGenerationAjaxRequest(workerIdOpt, QASRLGenerationPrompt(id, verbIndex)) =>
         val questionListsOpt = for {
           genManagerP <- Option(genManagerPeek)
@@ -342,7 +336,7 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
           workerStatsOpt = workerStatsOpt
         )
 
-        val tokens = id.tokens
+        val tokens = getTokens(id).map(_.token)
         val inflectedForms = inflections.getInflectedForms(tokens(verbIndex).lowerCase).get
         QASRLGenerationAjaxResponse(stats, tokens, inflectedForms)
     }
@@ -369,8 +363,8 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
     assignmentDuration = 600L
   )
 
-  lazy val valAjaxService = new Service[QASRLValidationAjaxRequest[SID]] {
-    override def processRequest(request: QASRLValidationAjaxRequest[SID]) = request match {
+  lazy val valAjaxService = new DotFunction[QASRLValidationAjaxRequest[SID]] {
+    override def apply(request: QASRLValidationAjaxRequest[SID]) = request match {
       case QASRLValidationAjaxRequest(workerIdOpt, id) =>
         val workerInfoSummaryOpt = for {
           valManagerP <- Option(valManagerPeek)
@@ -378,7 +372,7 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
           info        <- valManagerP.allWorkerInfo.get(workerId)
         } yield info.summary
 
-        QASRLValidationAjaxResponse(workerInfoSummaryOpt, id.tokens)
+        QASRLValidationAjaxResponse(workerInfoSummaryOpt, getTokens(id).map(_.token))
     }
   }
 
@@ -388,9 +382,9 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
     "",
     "",
     List(
-      VerbQA(0, "Who did someone look at?", List(Span(4, 4))),
-      VerbQA(1, "Who looked at someone?", List(Span(0, 1))),
-      VerbQA(1, "How did someone look at someone?", List(Span(5, 5)))
+      VerbQA(0, "Who did someone look at?", List(ISpan(4, 4))),
+      VerbQA(1, "Who looked at someone?", List(ISpan(0, 1))),
+      VerbQA(1, "How did someone look at someone?", List(ISpan(5, 5)))
     )
   )
 
@@ -546,7 +540,7 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
   def currentGenSentences: List[(SID, String)] = {
     genHelper.activeHITInfosByPromptIterator
       .map(_._1.id)
-      .map(id => id -> Text.render(id.tokens))
+      .map(id => id -> Text.render(getTokens(id)))
       .toList
   }
 
@@ -583,7 +577,7 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
   }
 
   def renderValidation(info: HITInfo[QASRLValidationPrompt[SID], List[QASRLValidationAnswer]]) = {
-    val sentence = info.hit.prompt.genPrompt.id.tokens
+    val sentence = getTokens(info.hit.prompt.genPrompt.id).map(_.token)
     val genWorkerString = hitDataService
       .getAssignmentsForHIT[List[VerbQA]](genTaskSpec.hitTypeId, info.hit.prompt.sourceHITId)
       .get
@@ -595,7 +589,7 @@ class QASRLAnnotationPipeline[SID: Encoder : Decoder/* : HasTokens*/](
       .map {
         case (VerbQA(verbIndex, question, answers), validationAnswers) =>
           val answerString =
-            answers.map(s => Text.renderSpan(sentence, (s.begin to s.end).toSet)).mkString(" / ")
+            answers.map(s => Text.renderSpan(sentence, ISpan(s.begin, s.end))).mkString(" / ")
           val validationRenderings =
             validationAnswers.map(QASRLValidationAnswer.render(sentence, _))
           val allValidationsString = validationRenderings.toList match {

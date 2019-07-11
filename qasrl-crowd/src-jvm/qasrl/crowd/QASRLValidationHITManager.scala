@@ -101,8 +101,9 @@ class QASRLValidationHITManager[SID: Encoder : Decoder](
     annotationDataService
       .loadLiveData(promptToAssignmentsFilename)
       .map(_.mkString)
-      .map(x => io.circe.parser.decode[Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]](x).right.get)
+      .map(x => io.circe.parser.decode[List[(QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]])]](x).right.get)
       .toOption
+      .map(_.toMap)
       .getOrElse {
         Map.empty[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]
       }
@@ -135,7 +136,7 @@ class QASRLValidationHITManager[SID: Encoder : Decoder](
     )
     annotationDataService.saveLiveData(
       promptToAssignmentsFilename,
-      (promptToAssignments: Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]).asJson.noSpaces
+      (promptToAssignments: Map[QASRLValidationPrompt[SID], List[Assignment[List[QASRLValidationAnswer]]]]).toList.asJson.noSpaces
     )
     annotationDataService.saveLiveData(
       validationPromptsFilename,

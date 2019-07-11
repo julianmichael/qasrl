@@ -1,8 +1,9 @@
 package qasrl.crowd
 
-import jjm.ISpan
-import jjm.ling.Text
-import jjm.ling.en.PosTags
+import jjm.DotFunction
+import jjm.ling._
+import jjm.ling.en.Inflections
+// import jjm.ling.en.PTBPosTags
 import jjm.implicits._
 
 // import nlpdata.structure._
@@ -42,12 +43,13 @@ import com.typesafe.scalalogging.StrictLogging
 
 import io.circe.{Encoder, Decoder}
 
-class QASRLEvaluationPipeline[SID: Encoder : Decoder : HasTokens](
+class QASRLEvaluationPipeline[SID: Encoder : Decoder, Word: HasToken : HasPos : HasIndex](
   val allPrompts: Vector[QASRLEvaluationPrompt[SID]], // IDs of sentences to annotate
   val numValidationsForPrompt: QASRLEvaluationPrompt[SID] => Int,
+  val getTokens: SID => Vector[Word],
   frozenEvaluationHITTypeId: Option[String] = None,
   validationAgreementDisqualTypeLabel: Option[String] = None,
-  alternativePromptReaderOpt: Option[Reader[QASRLEvaluationPrompt[SID]]] = None
+  alternativePromptDecoderOpt: Option[Decoder[QASRLEvaluationPrompt[SID]]] = None
 )(
   implicit val config: TaskConfig,
   val annotationDataService: AnnotationDataService,
@@ -191,8 +193,8 @@ class QASRLEvaluationPipeline[SID: Encoder : Decoder : HasTokens](
     assignmentDuration = 600L
   )
 
-  lazy val valAjaxService = new Service[QASRLValidationAjaxRequest[SID]] {
-    override def processRequest(request: QASRLValidationAjaxRequest[SID]) = request match {
+  lazy val valAjaxService = new DotFunction[QASRLValidationAjaxRequest[SID]] {
+    override def apply(request: QASRLValidationAjaxRequest[SID]) = request match {
       case QASRLValidationAjaxRequest(workerIdOpt, id) =>
         val workerInfoSummaryOpt = for {
           valManagerP <- Option(valManagerPeek)
@@ -200,7 +202,7 @@ class QASRLEvaluationPipeline[SID: Encoder : Decoder : HasTokens](
           info        <- valManagerP.allWorkerInfo.get(workerId)
         } yield info.summary
 
-        QASRLValidationAjaxResponse(workerInfoSummaryOpt, id.tokens)
+        QASRLValidationAjaxResponse(workerInfoSummaryOpt, getTokens(id).map(_.token))
     }
   }
 
@@ -289,7 +291,7 @@ class QASRLEvaluationPipeline[SID: Encoder : Decoder : HasTokens](
   // for use while it's running. Ideally instead of having to futz around at the console calling these functions,
   // in the future you could have a nice dashboard UI that will help you examine common sources of issues
 
-  def allInfos = alternativePromptReaderOpt match {
+  def allInfos = alternativePromptDecoderOpt match {
     case None =>
       hitDataService
         .getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](
@@ -300,7 +302,7 @@ class QASRLEvaluationPipeline[SID: Encoder : Decoder : HasTokens](
       hitDataService
         .getAllHITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]](
           valTaskSpec.hitTypeId
-        )(altReader, implicitly[Reader[List[QASRLValidationAnswer]]])
+        )(altReader, implicitly[Decoder[List[QASRLValidationAnswer]]])
         .get
   }
 
@@ -322,7 +324,7 @@ class QASRLEvaluationPipeline[SID: Encoder : Decoder : HasTokens](
   }
 
   def renderValidation(info: HITInfo[QASRLEvaluationPrompt[SID], List[QASRLValidationAnswer]]) = {
-    val sentence = info.hit.prompt.id.tokens
+    val sentence = getTokens(info.hit.prompt.id).map(_.token)
     Text.render(sentence) + "\n" +
     info.hit.prompt.sourcedQuestions
       .zip(info.assignments.map(_.response).transpose)

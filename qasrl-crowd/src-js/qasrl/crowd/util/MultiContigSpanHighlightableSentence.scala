@@ -1,6 +1,7 @@
 package qasrl.crowd.util
 
-import spacro.util.Span
+import jjm.ling.Text
+import jjm.ling.ISpan
 
 import org.scalajs.dom.html
 
@@ -9,8 +10,6 @@ import japgolly.scalajs.react._
 
 import scalacss.DevDefaults._
 import scalacss.ScalaCssReact._
-
-import nlpdata.util.Text
 
 import cats.implicits._
 
@@ -24,7 +23,7 @@ object MultiContigSpanHighlightableSentenceComponent {
   case class MultiContigSpanHighlightableSentenceProps(
     sentence: Vector[String], // PTB tokens
     styleForIndex: Int => TagMod,
-    highlightedSpans: List[(Span, TagMod)], // in order of priority, each with own style. first determines click events
+    highlightedSpans: List[(ISpan, TagMod)], // in order of priority, each with own style. first determines click events
     hover: Int => Callback,
     touch: Int => Callback,
     render: List[VdomTagOf[html.Span]] => VdomElement
@@ -42,7 +41,7 @@ object MultiContigSpanHighlightableSentenceComponent {
           render
           ) =>
         render(
-          Text.render(
+          Text.renderTokens(
             sentence.indices.toList,
             (index: Int) => sentence(index),
             (nextIndex: Int) =>

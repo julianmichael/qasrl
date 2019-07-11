@@ -1,6 +1,6 @@
 package qasrl.crowd
 
-import jjm.ISpan
+import jjm.ling.ISpan
 import io.circe.generic.JsonCodec
 
 @JsonCodec case class VerbQA(

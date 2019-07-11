@@ -1,8 +1,7 @@
 package example
 
-import spacro.ui._
-
 import qasrl.crowd.QASRLDispatcher
+import qasrl.crowd.dollarsToCents
 import qasrl.crowd.util._
 
 import japgolly.scalajs.react.vdom.html_<^._
@@ -10,8 +9,6 @@ import japgolly.scalajs.react._
 
 import scalacss.DevDefaults._
 import scalacss.ScalaCssReact._
-
-import upickle.default._
 
 object Dispatcher extends QASRLDispatcher[SentenceId] {
 
@@ -208,8 +205,6 @@ object Dispatcher extends QASRLDispatcher[SentenceId] {
       )
     )
   )
-
-  import InstructionsComponent._
 
   val generationOverview = <.div(
     <.p(
@@ -424,8 +419,8 @@ object Dispatcher extends QASRLDispatcher[SentenceId] {
   )
 
   override val generationInstructions = <.div(
-    Instructions(
-      InstructionsProps(
+    InstructionsPanel.Component(
+      InstructionsPanel.Props(
         instructionsId = "instructions",
         collapseCookieId = "generationCollapseCookie",
         tabs = List(
@@ -575,8 +570,8 @@ object Dispatcher extends QASRLDispatcher[SentenceId] {
   )
 
   override val validationInstructions = <.div(
-    Instructions(
-      InstructionsProps(
+    InstructionsPanel.Component(
+      InstructionsPanel.Props(
         instructionsId = "instructions",
         collapseCookieId = "validationCollapseCookie",
         tabs = List(

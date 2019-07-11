@@ -3,32 +3,16 @@ import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
 
-val thisScalaVersion = "2.11.12"
-val thisScalaJSVersion = "0.6.23"
+val thisScalaVersion = "2.12.8"
+val thisScalaJSVersion = "0.6.27"
 
 val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
-val qasrlVersion = "0.1.0"
+val jjmVersion = "0.1.0-SNAPSHOT"
+val qasrlVersion = "0.2.0-SNAPSHOT"
 
-// cats and react libs -- make sure versions match up
-val catsVersion = "1.1.0"
-val scalajsReactVersion = "1.2.3"
-val spacroVersion = "0.2.0"
-val nlpdataVersion = "0.2.0"
-val circeVersion = "0.9.3"
-val monocleVersion = "1.5.1-cats"
-
-val upickleVersion = "0.5.1"
-
-val akkaActorVersion = "2.4.20"
-val scalaLoggingVersion = "3.5.0"
 val corenlpVersion = "3.6.0"
-val slf4jApiVersion = "1.7.21"
-
-val scalajsDomVersion = "0.9.6"
-val scalajsJqueryVersion = "0.9.3"
-val scalajsScalaCSSVersion = "0.5.3"
 
 trait JvmPlatform {
   def platformSegment: String = "jvm"
@@ -79,17 +63,8 @@ trait ExampleModule extends ScalaModule with ScalafmtModule {
   )
 
   def ivyDeps = Agg(
-    ivy"org.julianmichael::nlpdata::$nlpdataVersion",
-    ivy"org.julianmichael::spacro::$spacroVersion",
     ivy"org.julianmichael::qasrl::$qasrlVersion",
     ivy"org.julianmichael::qasrl-crowd::$qasrlVersion",
-    ivy"org.typelevel::cats-core::$catsVersion",
-    ivy"com.github.julien-truffaut::monocle-core::$monocleVersion",
-    ivy"com.github.julien-truffaut::monocle-macro::$monocleVersion",
-    ivy"io.circe::circe-core::$circeVersion",
-    ivy"io.circe::circe-generic::$circeVersion",
-    ivy"io.circe::circe-parser::$circeVersion",
-    ivy"com.lihaoyi::upickle::$upickleVersion"
   )
 
   def scalacPluginIvyDeps = super.scalacPluginIvyDeps() ++ Agg(
@@ -101,12 +76,10 @@ trait ExampleModule extends ScalaModule with ScalafmtModule {
 object example extends Module {
   object jvm extends ExampleModule with JvmPlatform {
     def ivyDeps = super.ivyDeps() ++ Agg(
-      ivy"com.typesafe.akka::akka-actor::$akkaActorVersion",
-      ivy"com.typesafe.scala-logging::scala-logging::$scalaLoggingVersion",
-      ivy"org.slf4j:slf4j-api:$slf4jApiVersion", // decided to match scala-logging transitive dep
-      ivy"edu.stanford.nlp:stanford-corenlp:$corenlpVersion",
+      ivy"org.julianmichael::jjm-corenlp::$jjmVersion",
+      // TODO can I get this in as a transitive dep?
       ivy"edu.stanford.nlp:stanford-corenlp:$corenlpVersion".configure(
-        coursier.core.Attributes(`type` = "", classifier = "models")
+        coursier.core.Attributes(`type` = coursier.core.Type(""), classifier = coursier.core.Classifier("models"))
       ),
       ivy"ch.qos.logback:logback-classic:1.2.3"
     )
@@ -117,15 +90,6 @@ object example extends Module {
     )
   }
   object js extends ExampleModule with JsPlatform with SimpleJSDeps {
-    def ivyDeps = super.ivyDeps() ++ Agg(
-      ivy"org.scala-js::scalajs-dom::$scalajsDomVersion",
-      ivy"be.doeraene::scalajs-jquery::$scalajsJqueryVersion",
-      ivy"com.github.japgolly.scalajs-react::core::$scalajsReactVersion",
-      ivy"com.github.japgolly.scalajs-react::ext-monocle::$scalajsReactVersion",
-      ivy"com.github.japgolly.scalacss::core::$scalajsScalaCSSVersion",
-      ivy"com.github.japgolly.scalacss::ext-react::$scalajsScalaCSSVersion"
-    )
-
     def mainClass = T(Some("example.Dispatcher"))
 
     def jsDeps = Agg(

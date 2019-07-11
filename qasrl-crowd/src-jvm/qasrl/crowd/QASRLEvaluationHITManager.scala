@@ -19,6 +19,7 @@ import com.amazonaws.services.mturk.model.DisassociateQualificationFromWorkerReq
 import com.typesafe.scalalogging.StrictLogging
 
 import io.circe.{Encoder, Decoder}
+import io.circe.syntax._
 
 class QASRLEvaluationHITManager[SID: Encoder : Decoder](
   valDisqualificationTypeId: String,
@@ -73,7 +74,7 @@ class QASRLEvaluationHITManager[SID: Encoder : Decoder](
     annotationDataService
       .loadLiveData(workerInfoFilename)
       .map(_.mkString)
-      .map(read[Map[String, QASRLValidationWorkerInfo]])
+      .map(x => io.circe.parser.decode[Map[String, QASRLValidationWorkerInfo]](x).right.get)
       .toOption
       .getOrElse {
         Map.empty[String, QASRLValidationWorkerInfo]
@@ -86,7 +87,7 @@ class QASRLEvaluationHITManager[SID: Encoder : Decoder](
     annotationDataService
       .loadLiveData(feedbackFilename)
       .map(_.mkString)
-      .map(read[List[Assignment[List[QASRLValidationAnswer]]]])
+      .map(x => io.circe.parser.decode[List[Assignment[List[QASRLValidationAnswer]]]](x).right.get)
       .toOption
       .getOrElse(List.empty[Assignment[List[QASRLValidationAnswer]]])
 
@@ -96,22 +97,22 @@ class QASRLEvaluationHITManager[SID: Encoder : Decoder](
     annotationDataService
       .loadLiveData(blockedValidatorsFilename)
       .map(_.mkString)
-      .map(read[Set[String]])
+      .map(x => io.circe.parser.decode[Set[String]](x).right.get)
       .toOption
       .getOrElse(Set.empty[String])
 
   private[this] def save = {
     annotationDataService.saveLiveData(
       workerInfoFilename,
-      write[Map[String, QASRLValidationWorkerInfo]](allWorkerInfo)
+      allWorkerInfo.asJson.noSpaces
     )
     annotationDataService.saveLiveData(
       feedbackFilename,
-      write[List[Assignment[List[QASRLValidationAnswer]]]](feedbacks)
+      feedbacks.asJson.noSpaces
     )
     annotationDataService.saveLiveData(
       blockedValidatorsFilename,
-      write[Set[String]](blockedValidators)
+      blockedValidators.asJson.noSpaces
     )
     logger.info("Evaluation data saved.")
   }

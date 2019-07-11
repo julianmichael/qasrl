@@ -52,7 +52,7 @@ class QASRLGenerationHITManager[SID: Encoder : Decoder](
   var badSentences = annotationDataService
     .loadLiveData(badSentenceIdsFilename)
     .map(_.mkString)
-    .map(x => read[Set[SID]](x).right.get)
+    .map(x => io.circe.parser.decode[Set[SID]](x).right.get)
     .toOption
     .foldK
 
@@ -71,7 +71,7 @@ class QASRLGenerationHITManager[SID: Encoder : Decoder](
   var coverageStats: Map[String, List[Int]] = annotationDataService
     .loadLiveData(coverageStatsFilename)
     .map(_.mkString)
-    .map(x => read[Map[String, List[Int]]](x).right.get)
+    .map(x => io.circe.parser.decode[Map[String, List[Int]]](x).right.get)
     .toOption
     .getOrElse(Map.empty[String, List[Int]])
 
@@ -87,7 +87,7 @@ class QASRLGenerationHITManager[SID: Encoder : Decoder](
     annotationDataService
       .loadLiveData(feedbackFilename)
       .map(_.mkString)
-      .map(x => read[List[Assignment[List[VerbQA]]]](x).right.get)
+      .map(x => io.circe.parser.decode[List[Assignment[List[VerbQA]]]](x).right.get)
       .toOption
       .foldK
 

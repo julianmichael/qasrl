@@ -6,11 +6,11 @@ import scalajs.js
 import scalajs.js.JSApp
 import org.scalajs.jquery.jQuery
 
-import upickle.default._
-
 import japgolly.scalajs.react.vdom.html_<^.VdomTag
 
-abstract class QASRLEvaluationDispatcher[SID: Reader: Writer](
+import io.circe.{Encoder, Decoder}
+
+abstract class QASRLEvaluationDispatcher[SID: Encoder : Decoder](
   implicit settings: QASRLEvaluationSettings
 ) extends TaskDispatcher {
 

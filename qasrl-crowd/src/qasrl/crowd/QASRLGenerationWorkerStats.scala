@@ -1,10 +1,10 @@
 package qasrl.crowd
 
-// import jjm.implicits._
+import jjm.implicits._
 
 import cats.implicits._
 
-import io.circe.JsonCodec
+import io.circe.generic.JsonCodec
 
 @JsonCodec case class AccuracyJudgment(
   validatorId: String,

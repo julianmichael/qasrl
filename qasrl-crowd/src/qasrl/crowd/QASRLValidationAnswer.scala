@@ -1,8 +1,8 @@
 package qasrl.crowd
 
-import jjm.Span
+import jjm.ling.ISpan
 import jjm.ling.Text
-// import jjm.implicits._
+import jjm.implicits._
 
 import cats.implicits._
 
@@ -45,8 +45,11 @@ import io.circe.generic.JsonCodec
     case _ => false
   }
 }
-@JsonCodec case object InvalidQuestion extends QASRLValidationAnswer
-@Lenses @JsonCodec case class Answer(spans: List[Span]) extends QASRLValidationAnswer
+
+case object InvalidQuestion extends QASRLValidationAnswer
+
+@JsonCodec @Lenses case class Answer(spans: List[ISpan]) extends QASRLValidationAnswer
+object Answer
 
 object QASRLValidationAnswer {
   val invalidQuestion = GenPrism[QASRLValidationAnswer, InvalidQuestion.type]
@@ -61,7 +64,7 @@ object QASRLValidationAnswer {
     va: QASRLValidationAnswer
   ): String = va match {
     case InvalidQuestion => "Invalid"
-    case Answer(spans)   => spans.map { case Span(begin, end) => s"$begin-$end" }.mkString(" / ")
+    case Answer(spans)   => spans.map { case ISpan(begin, end) => s"$begin-$end" }.mkString(" / ")
   }
 
   // inverse of QASRLValidationAnswer.renderIndices
@@ -77,7 +80,7 @@ object QASRLValidationAnswer {
           .map(
             is =>
               is.split("-").map(_.toInt).toList match {
-                case begin :: end :: Nil => Span(begin, end)
+                case begin :: end :: Nil => ISpan(begin, end)
                 case _                   => ??? // should not happen
             }
           )
@@ -91,6 +94,6 @@ object QASRLValidationAnswer {
   ): String = va match {
     case InvalidQuestion => "<Invalid>"
     case Answer(spans) =>
-      spans.map(span => Text.renderSpan(sentence, (span.begin to span.end).toSet)).mkString(" / ")
+      spans.map(span => Text.renderSpan(sentence, span)).mkString(" / ")
   }
 }

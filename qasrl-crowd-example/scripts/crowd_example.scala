@@ -9,9 +9,6 @@ import scala.concurrent.duration._
 import com.amazonaws.services.mturk._
 import com.amazonaws.services.mturk.model._
 
-import nlpdata.util.Text
-import nlpdata.util.HasTokens.ops._
-
 val label = "trial"
 
 val isProduction = false // sandbox. change to true for production
@@ -23,7 +20,7 @@ val interface = "0.0.0.0"
 val httpPort = 8888
 val httpsPort = 8080
 
-val annotationPath = java.nio.file.Paths.get(s"data/tqa/$label/annotations")
+val annotationPath = java.nio.file.Paths.get(s"data/$label/annotations")
 implicit val timeout = akka.util.Timeout(5.seconds)
 implicit val config: TaskConfig = {
   if(isProduction) {
@@ -46,7 +43,6 @@ def exit = {
 }
 
 val setup = new AnnotationSetup(label)
-import setup.SentenceIdHasTokens
 
 val exp = setup.experiment
 exp.server

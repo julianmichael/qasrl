@@ -1,6 +1,8 @@
 package example
 
-case class SentenceId(index: Int)
+import io.circe.generic.JsonCodec
+
+@JsonCodec case class SentenceId(index: Int)
 
 object SentenceId {
 
@@ -8,8 +10,4 @@ object SentenceId {
   // used for storing to / reading from  the dataset file.
   def toString(sid: SentenceId) = sid.index.toString
   def fromString(s: String): SentenceId = SentenceId(s.toInt)
-
-  import upickle.default._
-  implicit val reader = macroR[SentenceId]
-  implicit val writer = macroW[SentenceId]
 }

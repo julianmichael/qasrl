@@ -1,17 +1,15 @@
 package qasrl.crowd
 
-import qasrl.crowd.util.dollarsToCents
+import jjm.OrWrapped
+import jjm.ling.Text
+import jjm.ling.ISpan
+
 import qasrl.crowd.util.MultiContigSpanHighlightableSentenceComponent
 import qasrl.crowd.util.Styles
-import qasrl.crowd.util.implicits._
 
 import spacro.tasks._
-import spacro.ui._
-import spacro.util.Span
 
 import cats.implicits._
-
-import nlpdata.util.Text
 
 import scalajs.js
 import org.scalajs.dom
@@ -27,18 +25,21 @@ import japgolly.scalajs.react._
 import scalacss.DevDefaults._
 import scalacss.ScalaCssReact._
 
-import upickle.default._
-
 import monocle._
 import monocle.function.{all => Optics}
 import monocle.macros._
 import japgolly.scalajs.react.MonocleReact._
 
-class QASRLValidationClient[SID: Writer: Reader](instructions: VdomTag)(
+import io.circe.{Encoder, Decoder}
+
+import radhoc.SpanSelection
+import radhoc.CacheCallContent
+
+class QASRLValidationClient[SID: Encoder : Decoder](instructions: VdomTag)(
   implicit settings: QASRLSettings,
-  promptReader: Reader[QASRLValidationPrompt[SID]], // macro serializers don't work for superclass constructor parameters
-  responseWriter: Writer[List[QASRLValidationAnswer]], // same as above
-  ajaxRequestWriter: Writer[QASRLValidationAjaxRequest[SID]] // "
+  promptDecoder: Decoder[QASRLValidationPrompt[SID]], // macro serializers don't work for superclass constructor parameters
+  responseEncoder: Encoder[List[QASRLValidationAnswer]], // same as above
+  ajaxRequestEncoder: Encoder[QASRLValidationAjaxRequest[SID]] // "
 ) extends TaskClient[QASRLValidationPrompt[SID], List[QASRLValidationAnswer], QASRLValidationAjaxRequest[
       SID
     ]] {
@@ -48,11 +49,8 @@ class QASRLValidationClient[SID: Writer: Reader](instructions: VdomTag)(
     FullUI().renderIntoDOM(dom.document.getElementById(FieldLabels.rootClientDivLabel))
   }
 
-  val AsyncContentComponent = new AsyncContentComponent[QASRLValidationAjaxResponse]
-  import AsyncContentComponent._
-  val SpanHighlightingComponent = new SpanHighlightingComponent[Int] // question
-  import SpanHighlightingComponent._
-
+  val AjaxFetch = new CacheCallContent[QASRLValidationAjaxRequest[SID], QASRLValidationAjaxResponse]
+  val AnswerSelection = new SpanSelection[Int] // by question index
   import MultiContigSpanHighlightableSentenceComponent._
 
   lazy val questions = prompt.qaPairs.map(_.question)
@@ -64,7 +62,7 @@ class QASRLValidationClient[SID: Writer: Reader](instructions: VdomTag)(
   )
 
   object State {
-    def initial = State(0, false, questions.map(_ => Answer(List.empty[Span])))
+    def initial = State(0, false, questions.map(_ => Answer(List.empty[ISpan])))
   }
 
   def answerSpanOptics(questionIndex: Int) =
@@ -79,7 +77,7 @@ class QASRLValidationClient[SID: Writer: Reader](instructions: VdomTag)(
       setResponse(state.answers)
     }
 
-    def updateCurrentAnswers(highlightingState: SpanHighlightingState) =
+    def updateCurrentAnswers(highlightingState: AnswerSelection.State) =
       scope.state >>= (
         st =>
           scope.modState(
@@ -170,179 +168,172 @@ class QASRLValidationClient[SID: Writer: Reader](instructions: VdomTag)(
             case Answer(spans) if isFocused => // spans nonempty
               (spans.flatMap { span =>
                 List(
-                  <.span(Text.renderSpan(sentence, (span.begin to span.end).toSet)),
+                  <.span(Text.renderSpan(sentence, span)),
                   <.span(" / ")
                 )
               } ++ List(<.span(^.color := "#CCCCCC", "Highlight to add an answer"))).toVdomArray
             case Answer(spans) =>
-              spans.map(s => Text.renderSpan(sentence, (s.begin to s.end).toSet)).mkString(" / ")
+              spans.map(s => Text.renderSpan(sentence, s)).mkString(" / ")
           }
         )
       )
     }
 
     def render(state: State) = {
-      AsyncContent(
-        AsyncContentProps(
-          getContent = () => makeAjaxRequest(QASRLValidationAjaxRequest(workerIdOpt, prompt.id)),
-          render = {
-            case Loading => <.div("Retrieving data...")
-            case Loaded(QASRLValidationAjaxResponse(workerInfoSummaryOpt, sentence)) =>
-              import state._
+      AjaxFetch.make(
+        request = QASRLValidationAjaxRequest(workerIdOpt, prompt.id),
+        sendRequest = r => OrWrapped.wrapped(AsyncCallback.fromFuture(makeAjaxRequest(r)))) {
+        case AjaxFetch.Loading => <.div("Retrieving data...")
+        case AjaxFetch.Loaded(QASRLValidationAjaxResponse(workerInfoSummaryOpt, sentence)) =>
+          import state._
 
-              def getRemainingInAgreementGracePeriodOpt(summary: QASRLValidationWorkerInfoSummary) =
-                Option(settings.validationAgreementGracePeriod - summary.numAssignmentsCompleted)
-                  .filter(_ > 0)
+          def getRemainingInAgreementGracePeriodOpt(summary: QASRLValidationWorkerInfoSummary) =
+            Option(settings.validationAgreementGracePeriod - summary.numAssignmentsCompleted)
+              .filter(_ > 0)
 
-              SpanHighlighting(
-                SpanHighlightingProps(
-                  isEnabled = !isNotAssigned && answers(curQuestion).isAnswer,
-                  update = updateCurrentAnswers,
-                  render = {
-                    case (
-                        hs @ SpanHighlightingState(spans, status),
-                        SpanHighlightingContext(_, hover, touch, cancelHighlight)
-                        ) =>
-                      val curVerbIndex = prompt.qaPairs(curQuestion).verbIndex
-                      val inProgressAnswerOpt =
-                        SpanHighlightingStatus.highlighting.getOption(status).map {
-                          case Highlighting(_, anchor, endpoint) => Span(anchor, endpoint)
-                        }
-                      val curAnswers = spans(curQuestion)
-                      val otherAnswers = (spans - curQuestion).values.flatten
-                      val highlightedAnswers =
-                        prompt.qaPairs.indices.map(i => i -> Answer(spans(i))).toMap
+          AnswerSelection.make(
+            isEnabled = !isNotAssigned && answers(curQuestion).isAnswer,
+            enableSpanOverlap = false,
+            update = updateCurrentAnswers) {
+            case (hs @ AnswerSelection.State(spans, status),
+                  AnswerSelection.Context(_, hover, touch, cancelHighlight)
+            ) =>
+              val curVerbIndex = prompt.qaPairs(curQuestion).verbIndex
+              val inProgressAnswerOpt =
+                AnswerSelection.Status.selecting.getOption(status).map {
+                  case AnswerSelection.Selecting(_, anchor, endpoint) => ISpan(anchor, endpoint)
+                }
+              val curAnswers = spans(curQuestion)
+              val otherAnswers = (spans - curQuestion).values.flatten
+              val highlightedAnswers =
+                prompt.qaPairs.indices.map(i => i -> Answer(spans(i))).toMap
 
-                      val isCurrentInvalid = answers(curQuestion).isInvalid
-                      val touchWord = touch(curQuestion)
-                      <.div(
-                        ^.classSet1("container-fluid"),
-                        ^.onClick --> cancelHighlight,
-                        <.div(
-                          instructions,
-                          ^.margin := "5px"
-                        ),
-                        workerInfoSummaryOpt.whenDefined(
-                          summary =>
-                            <.div(
-                              ^.classSet1("card"),
-                              ^.margin := "5px",
-                              <.p(
-                                f"""You have marked ${summary.proportionInvalid * 100.0}%.1f%% of questions as invalid.
+              val isCurrentInvalid = answers(curQuestion).isInvalid
+              val touchWord = touch(curQuestion)
+                <.div(
+                  ^.classSet1("container-fluid"),
+                  ^.onClick --> cancelHighlight,
+                  <.div(
+                    instructions,
+                    ^.margin := "5px"
+                  ),
+                  workerInfoSummaryOpt.whenDefined(
+                    summary =>
+                    <.div(
+                      ^.classSet1("card"),
+                      ^.margin := "5px",
+                      <.p(
+                        f"""You have marked ${summary.proportionInvalid * 100.0}%.1f%% of questions as invalid.
                                In general, you should expect this to be around 10%%
                                unless you are getting an unusually good set of questions. """,
-                                (
-                                  if (summary.proportionInvalid < 0.6)
-                                    " Consider being harsher on bad questions if necessary. "
-                                  else ""
-                                )
-                              ).when(!summary.proportionInvalid.isNaN),
-                              <.p(
-                                """Your responses agree with others """,
-                                <.span(
-                                  if (summary.agreement <= settings.validationAgreementBlockingThreshold) {
-                                    Styles.badRed
-                                  } else if (summary.agreement <= settings.validationAgreementBlockingThreshold + 0.05) {
-                                    TagMod(Styles.uncomfortableOrange, Styles.bolded)
-                                  } else {
-                                    Styles.goodGreen
-                                  },
-                                  f"${summary.agreement * 100.0}%.1f%%"
-                                ),
-                                f""" of the time. This must remain above ${settings.validationAgreementBlockingThreshold * 100.0}%.1f%%""",
-                                getRemainingInAgreementGracePeriodOpt(summary).fold(".")(
-                                  remaining =>
-                                    s" after the end of a grace period ($remaining verbs remaining)."
-                                )
-                              ).when(!summary.agreement.isNaN)
-                          )
+                        (
+                          if (summary.proportionInvalid < 0.6)
+                            " Consider being harsher on bad questions if necessary. "
+                          else ""
+                        )
+                      ).when(!summary.proportionInvalid.isNaN),
+                      <.p(
+                        """Your responses agree with others """,
+                        <.span(
+                          if (summary.agreement <= settings.validationAgreementBlockingThreshold) {
+                            Styles.badRed
+                          } else if (summary.agreement <= settings.validationAgreementBlockingThreshold + 0.05) {
+                            TagMod(Styles.uncomfortableOrange, Styles.bolded)
+                          } else {
+                            Styles.goodGreen
+                          },
+                          f"${summary.agreement * 100.0}%.1f%%"
                         ),
-                        <.div(
-                          ^.classSet1("card"),
-                          ^.margin := "5px",
-                          ^.padding := "5px",
-                          ^.tabIndex := 0,
-                          ^.onFocus --> scope.modState(State.isInterfaceFocused.set(true)),
-                          ^.onBlur --> scope.modState(State.isInterfaceFocused.set(false)),
-                          ^.onKeyDown ==> (
-                            (e: ReactKeyboardEvent) =>
-                              handleKey(highlightedAnswers)(e) >> cancelHighlight
-                          ),
-                          ^.position := "relative",
-                          <.div(
-                            ^.position := "absolute",
-                            ^.top := "20px",
-                            ^.left := "0px",
-                            ^.width := "100%",
-                            ^.height := "100%",
-                            ^.textAlign := "center",
-                            ^.color := "rgba(48, 140, 20, .3)",
-                            ^.fontSize := "48pt",
-                            (if (isNotAssigned) "Accept assignment to start"
-                             else "Click here to start")
-                          ).when(!isInterfaceFocused),
-                          MultiContigSpanHighlightableSentence(
-                            MultiContigSpanHighlightableSentenceProps(
-                              sentence = sentence,
-                              styleForIndex = i =>
-                                TagMod(Styles.specialWord, Styles.niceBlue).when(i == curVerbIndex),
-                              highlightedSpans =
-                                (inProgressAnswerOpt.map(_ -> (^.backgroundColor := "#FF8000")) ::
-                                (curAnswers.map(_  -> (^.backgroundColor := "#FFFF00")) ++
+                        f""" of the time. This must remain above ${settings.validationAgreementBlockingThreshold * 100.0}%.1f%%""",
+                        getRemainingInAgreementGracePeriodOpt(summary).fold(".")(
+                          remaining =>
+                          s" after the end of a grace period ($remaining verbs remaining)."
+                        )
+                      ).when(!summary.agreement.isNaN)
+                    )
+                  ),
+                  <.div(
+                    ^.classSet1("card"),
+                    ^.margin := "5px",
+                    ^.padding := "5px",
+                    ^.tabIndex := 0,
+                    ^.onFocus --> scope.modState(State.isInterfaceFocused.set(true)),
+                    ^.onBlur --> scope.modState(State.isInterfaceFocused.set(false)),
+                    ^.onKeyDown ==> (
+                      (e: ReactKeyboardEvent) =>
+                      handleKey(highlightedAnswers)(e) >> cancelHighlight
+                    ),
+                    ^.position := "relative",
+                    <.div(
+                      ^.position := "absolute",
+                      ^.top := "20px",
+                      ^.left := "0px",
+                      ^.width := "100%",
+                      ^.height := "100%",
+                      ^.textAlign := "center",
+                      ^.color := "rgba(48, 140, 20, .3)",
+                      ^.fontSize := "48pt",
+                      (if (isNotAssigned) "Accept assignment to start"
+                       else "Click here to start")
+                    ).when(!isInterfaceFocused),
+                    MultiContigSpanHighlightableSentence(
+                      MultiContigSpanHighlightableSentenceProps(
+                        sentence = sentence,
+                        styleForIndex = i =>
+                        TagMod(Styles.specialWord, Styles.niceBlue).when(i == curVerbIndex),
+                        highlightedSpans =
+                          (inProgressAnswerOpt.map(_ -> (^.backgroundColor := "#FF8000")) ::
+                             (curAnswers.map(_  -> (^.backgroundColor := "#FFFF00")) ++
                                 otherAnswers.map(_ -> (^.backgroundColor := "#DDDDDD")))
-                                  .map(Some(_))).flatten,
-                              hover = hover(state.curQuestion),
-                              touch = touch(state.curQuestion),
-                              render = (
-                                elements =>
-                                  <.p(Styles.largeText, Styles.unselectable, elements.toVdomArray)
-                              )
-                            )
-                          ),
-                          <.ul(
-                            ^.classSet1("list-unstyled"),
-                            (0 until questions.size).toVdomArray { index =>
-                              <.li(
-                                ^.key := s"question-$index",
-                                ^.display := "block",
-                                qaField(state, sentence, highlightedAnswers)(index)
-                              )
-                            }
-                          ),
-                          <.p(
-                            s"Bonus: ${dollarsToCents(settings.validationBonus(questions.size))}c"
-                          )
-                        ),
-                        <.div(
-                          ^.classSet1("form-group"),
-                          ^.margin := "5px",
-                          <.textarea(
-                            ^.classSet1("form-control"),
-                            ^.name := FieldLabels.feedbackLabel,
-                            ^.rows := 3,
-                            ^.placeholder := "Feedback? (Optional)"
-                          )
-                        ),
-                        <.input(
-                          ^.classSet1("btn btn-primary btn-lg btn-block"),
-                          ^.margin := "5px",
-                          ^.`type` := "submit",
-                          ^.disabled := !state.answers.forall(_.isComplete),
-                          ^.id := FieldLabels.submitButtonLabel,
-                          ^.value := (
-                            if (isNotAssigned) "You must accept the HIT to submit results"
-                            else if (!state.answers.forall(_.isComplete))
-                              "You must respond to all questions to submit results"
-                            else "Submit"
-                          )
+                             .map(Some(_))).flatten,
+                        hover = hover(state.curQuestion),
+                        touch = touch(state.curQuestion),
+                        render = (
+                          elements =>
+                          <.p(Styles.largeText, Styles.unselectable, elements.toVdomArray)
                         )
                       )
-                  }
+                    ),
+                    <.ul(
+                      ^.classSet1("list-unstyled"),
+                      (0 until questions.size).toVdomArray { index =>
+                        <.li(
+                          ^.key := s"question-$index",
+                          ^.display := "block",
+                          qaField(state, sentence, highlightedAnswers)(index)
+                        )
+                      }
+                    ),
+                    <.p(
+                      s"Bonus: ${dollarsToCents(settings.validationBonus(questions.size))}c"
+                    )
+                  ),
+                  <.div(
+                    ^.classSet1("form-group"),
+                    ^.margin := "5px",
+                    <.textarea(
+                      ^.classSet1("form-control"),
+                      ^.name := FieldLabels.feedbackLabel,
+                      ^.rows := 3,
+                      ^.placeholder := "Feedback? (Optional)"
+                    )
+                  ),
+                  <.input(
+                    ^.classSet1("btn btn-primary btn-lg btn-block"),
+                    ^.margin := "5px",
+                    ^.`type` := "submit",
+                    ^.disabled := !state.answers.forall(_.isComplete),
+                    ^.id := FieldLabels.submitButtonLabel,
+                    ^.value := (
+                      if (isNotAssigned) "You must accept the HIT to submit results"
+                      else if (!state.answers.forall(_.isComplete))
+                        "You must respond to all questions to submit results"
+                      else "Submit"
+                    )
+                  )
                 )
-              )
           }
-        )
-      )
+      }
     }
   }
 

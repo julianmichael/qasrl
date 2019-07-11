@@ -1,12 +1,13 @@
 package qasrl.crowd
 
+import jjm.ling._
+import jjm.implicits._
+
 import qasrl.TemplateStateMachine
 import qasrl.QuestionProcessor
 import qasrl.labeling.SlotBasedLabel
 
 import spacro.HITInfo
-
-import jjm.implicits._
 
 import scala.collection.immutable.SortedMap
 import scala.util.Random
@@ -14,8 +15,8 @@ import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.StrictLogging
 
-class AnnotationDataExporter[SID/*: HasTokens*/](
-  experiment: QASRLAnnotationPipeline[SID]
+class AnnotationDataExporter[SID, Word : HasToken](
+  experiment: QASRLAnnotationPipeline[SID, Word]
 ) extends StrictLogging {
   import experiment.inflections
   val allIdsSet = experiment.allIds.toSet
@@ -55,7 +56,7 @@ class AnnotationDataExporter[SID/*: HasTokens*/](
         genInfosBySentenceId.map {
           case (id, sentenceGenInfos) =>
             val sentenceIdString = sentenceIdToString(id)
-            val sentenceTokens = id.tokens
+            val sentenceTokens = experiment.getTokens(id).map(_.token)
 
             val computedVerbIndices = experiment.getKeyIndices(id)
             val verbIndices = sentenceGenInfos.map(_.hit.prompt.verbIndex).toSet

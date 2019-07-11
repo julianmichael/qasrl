@@ -1,7 +1,6 @@
 package qasrl.crowd
 
-// import jjm.implicits._
-
+import jjm.implicits._
 import cats.implicits._
 
 import io.circe.generic.JsonCodec

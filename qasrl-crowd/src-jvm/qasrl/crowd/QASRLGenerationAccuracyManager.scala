@@ -1,7 +1,8 @@
 package qasrl.crowd
 
+import jjm.implicits._
+
 import qasrl.crowd.util.implicits._
-import qasrl.crowd.dollarsToCents
 
 import spacro._
 import spacro.tasks._
@@ -39,7 +40,8 @@ class QASRLGenerationAccuracyManager[SID: Encoder : Decoder](genDisqualification
     annotationDataService
       .loadLiveData(workerStatsFilename)
       .map(_.mkString)
-      .map(x => io.circe.parser.decode[Map[String, QASRLGenerationWorkerStats]](x).right.get)
+      .map(x => io.circe.parser.decode[Map[String, QASRLGenerationWorkerStats]](
+             x).right.get)
       .toOption
       .getOrElse {
         Map.empty[String, QASRLGenerationWorkerStats]

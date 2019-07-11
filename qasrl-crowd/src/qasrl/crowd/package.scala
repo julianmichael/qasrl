@@ -5,17 +5,11 @@ import jjm.{DotEncoder, DotDecoder}
 import jjm.ling.en.InflectedForms
 
 import io.circe.{Encoder, Decoder}
-import io.circe.JsonCodec
-
-// import nlpdata.datasets.wiktionary.InflectedForms
-
-// import upickle.default._
+import io.circe.generic.JsonCodec
 
 package object crowd {
 
   def dollarsToCents(d: Double): Int = math.round(100 * d).toInt
-
-  // import nlpdata.util.LowerCaseStrings._
 
   @JsonCodec case class QASRLGenerationPrompt[SID](id: SID, verbIndex: Int)
 
@@ -53,7 +47,7 @@ package object crowd {
     }
   }
 
-  @JsonCodecs case class QASRLValidationAjaxResponse(
+  @JsonCodec case class QASRLValidationAjaxResponse(
     workerInfoOpt: Option[QASRLValidationWorkerInfoSummary],
     sentence: Vector[String]
   )

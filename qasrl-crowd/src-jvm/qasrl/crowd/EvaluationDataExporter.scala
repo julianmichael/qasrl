@@ -1,5 +1,6 @@
 package qasrl.crowd
 
+import jjm.ling.HasToken
 import jjm.implicits._
 
 import qasrl.TemplateStateMachine
@@ -15,8 +16,8 @@ import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.StrictLogging
 
-class EvaluationDataExporter[SID/*: HasTokens*/](
-  experiment: QASRLEvaluationPipeline[SID]
+class EvaluationDataExporter[SID, Word : HasToken](
+  experiment: QASRLEvaluationPipeline[SID, Word]
 ) extends StrictLogging {
   import experiment.inflections
   val infos = experiment.allInfos
@@ -47,7 +48,7 @@ class EvaluationDataExporter[SID/*: HasTokens*/](
       infos.groupBy(_.hit.prompt.id).map {
         case (id, infosForSentence) =>
           val sentenceIdString = sentenceIdToString(id)
-          val sentenceTokens = id.tokens
+          val sentenceTokens = experiment.getTokens(id).map(_.token)
           val verbIndices =
             infosForSentence.flatMap(_.hit.prompt.sourcedQuestions.map(_.verbIndex)).toSet
           val partialVerbEntries = for {
