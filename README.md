@@ -14,13 +14,11 @@ There are currently three projects in this repository.
 
 Relevant imports for this project are as follows:
 ```
-  libraryDependencies += "org.julianmichael" %%% "nlpdata" % "0.2.0"
   libraryDependencies += "org.julianmichael" %%% "qasrl" % "0.1.0"
   libraryDependencies += "org.julianmichael" %%% "qasrl-crowd" % "0.1.0"
 ```
 in your sbt project settings, or 
 ```
-  ivy"org.julianmichael::nlpdata::0.2.0",
   ivy"org.julianmichael::qasrl::0.1.0",
   ivy"org.julianmichael::qasrl-crowd::0.1.0"
 ```

@@ -1,5 +1,7 @@
 package qasrl.crowd
 
+import cats.data.NonEmptySet
+
 import jjm.ling._
 import jjm.implicits._
 
@@ -102,9 +104,9 @@ class AnnotationDataExporter[SID, Word : HasToken](
                                                     qasrl.data.InvalidQuestion
                                                   case qasrl.crowd.Answer(spans) =>
                                                     Answer(
-                                                      spans
-                                                        .map(s => AnswerSpan(s.begin, s.end + 1))
-                                                        .toSet
+                                                      NonEmptySet.fromSet(
+                                                        scala.collection.immutable.TreeSet(spans.map(_.toExclusive):_*)
+                                                      ).get // TODO move this out to handle empty case better
                                                     )
                                                 }
                                             )
@@ -131,7 +133,13 @@ class AnnotationDataExporter[SID, Word : HasToken](
                                   case (VerbQA(_, _, genSpans), valAnswers) =>
                                     valAnswers.toSet + AnswerLabel(
                                       workerAnonymizationMapping(genAssignment.workerId),
-                                      Answer(genSpans.map(s => AnswerSpan(s.begin, s.end + 1)).toSet)
+                                      Answer(
+                                        NonEmptySet.fromSet(
+                                          scala.collection.immutable.TreeSet(
+                                            genSpans.map(_.toExclusive): _*
+                                          )
+                                        ).get // TODO push error handling out
+                                      )
                                     )
                                 }
                                 questionStrings.zip(questionSlotLabelOpts).collect {

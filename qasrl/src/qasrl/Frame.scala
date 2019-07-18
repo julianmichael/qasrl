@@ -4,6 +4,7 @@ import jjm.DependentMap
 import jjm.LowerCaseString
 import jjm.ling.en._
 import jjm.implicits._
+import VerbForm._
 
 import cats.Id
 import cats.Foldable

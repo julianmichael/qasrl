@@ -445,7 +445,7 @@ class TemplateStateMachine(
 
   // follows no aux
   val tensedVerb = progress(
-    (" " + present.toString) -> modFrame(Frame.tense.set(PresentTense)).as(obj),
+    (" " + presentSingular3rd.toString) -> modFrame(Frame.tense.set(PresentTense)).as(obj),
     (" " + past.toString)    -> modFrame(Frame.tense.set(PastTense)).as(obj)
   )
 

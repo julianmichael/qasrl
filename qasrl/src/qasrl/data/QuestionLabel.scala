@@ -8,7 +8,9 @@ import qasrl.labeling.SlotBasedLabel
 import jjm.ling.en.VerbForm
 import jjm.implicits._
 
-@Lenses case class QuestionLabel(
+import io.circe.generic.JsonCodec
+
+@Lenses @JsonCodec case class QuestionLabel(
   questionString: String,
   questionSources: Set[String],
   answerJudgments: Set[AnswerLabel],
@@ -33,11 +35,11 @@ import jjm.implicits._
     )
     if (cmps.exists(identity)) {
       val thisQString = questionString + " (" + questionSlots.renderWithSeparator(
-        vf => JsonCodecs.verbFormToString(vf).lowerCase,
+        vf => vf.toString.lowerCase,
         ","
       ) + ")"
       val otherQString = other.questionString + " (" + other.questionSlots.renderWithSeparator(
-        vf => JsonCodecs.verbFormToString(vf).lowerCase,
+        vf => vf.toString.lowerCase,
         ","
       ) + ")"
       Left(
@@ -59,3 +61,4 @@ import jjm.implicits._
       )
   }
 }
+object QuestionLabel

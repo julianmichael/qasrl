@@ -15,6 +15,11 @@ import cats.implicits._
 
 import scala.util.Try
 
+import io.circe.{Encoder, Decoder}
+import io.circe.DecodingFailure
+import io.circe.HCursor
+import io.circe.Json
+
 // for accordance with original QA-SRL format
 case class SlotBasedLabel[A](
   wh: LowerCaseString,
@@ -63,6 +68,54 @@ object SlotBasedLabel {
     override def map[A, B](fa: SlotBasedLabel[A])(f: A => B): SlotBasedLabel[B] =
       fa.copy(verb = f(fa.verb))
   }
+
+  def verbInfoFromString(s: String): Decoder.Result[(List[LowerCaseString], VerbForm)] = {
+    val vec = s.split(" ").toVector
+    val prefix = vec.init.toList.map(_.lowerCase)
+    val verbFormResult = vec.last match {
+      case "stem"               => Right(VerbForm.Stem)
+      case "presentSingular3rd" => Right(VerbForm.PresentSingular3rd)
+      case "presentParticiple"  => Right(VerbForm.PresentParticiple)
+      case "past"               => Right(VerbForm.Past)
+      case "pastParticiple"     => Right(VerbForm.PastParticiple)
+      case x                    => Left(DecodingFailure(s"Invalid string for verb form: $x", Nil))
+    }
+    verbFormResult.right.map(prefix -> _)
+  }
+
+  implicit val slotBasedLabelWithVerbFormEncoder: Encoder[SlotBasedLabel[VerbForm]] =
+    new Encoder[SlotBasedLabel[VerbForm]] {
+      final def apply(label: SlotBasedLabel[VerbForm]): Json = Json.obj(
+        "wh"   -> Json.fromString(label.wh),
+        "aux"  -> Json.fromString(label.aux.fold("_")(_.toString)),
+        "subj" -> Json.fromString(label.subj.fold("_")(_.toString)),
+        "verb" -> Json.fromString(
+          (label.verbPrefix ++ List(label.verb.toString)).mkString(" ")
+        ),
+        "obj"  -> Json.fromString(label.obj.fold("_")(_.toString)),
+        "prep" -> Json.fromString(label.prep.fold("_")(_.toString)),
+        "obj2" -> Json.fromString(label.obj2.fold("_")(_.toString))
+      )
+    }
+
+  val readOptionalSlotString = (s: String) => if (s == "_") None else Some(s.lowerCase)
+
+  implicit val slotBasedLabelWithVerbFormDecoder: Decoder[SlotBasedLabel[VerbForm]] =
+    new Decoder[SlotBasedLabel[VerbForm]] {
+      final def apply(c: HCursor): Decoder.Result[SlotBasedLabel[VerbForm]] =
+        for {
+          wh                <- c.downField("wh").as[String].right.map(_.lowerCase).right
+          aux               <- c.downField("aux").as[String].right.map(readOptionalSlotString).right
+          subj              <- c.downField("subj").as[String].right.map(readOptionalSlotString).right
+          verbString        <- c.downField("verb").as[String].right
+          verbPrefixAndForm <- verbInfoFromString(verbString).right
+          obj               <- c.downField("obj").as[String].right.map(readOptionalSlotString).right
+          prep              <- c.downField("prep").as[String].right.map(readOptionalSlotString).right
+          obj2              <- c.downField("obj2").as[String].right.map(readOptionalSlotString).right
+        } yield
+          SlotBasedLabel(wh, aux, subj, verbPrefixAndForm._1, verbPrefixAndForm._2, obj, prep, obj2)
+    }
+
 
   def fromRenderedString[A](readVerb: LowerCaseString => A, sep: String)(str: String) = Try {
     val fields = str.split(sep)
@@ -238,7 +291,7 @@ object SlotBasedLabel {
 
   val instantiateVerbForTenseSlots = QuestionLabelMapper.liftWithContext(
     (_: Vector[String], verbInflectedForms: InflectedForms, slots: SlotBasedLabel[VerbForm]) =>
-      slots.map(verbInflectedForms)
+      slots.map(verbInflectedForms.apply)
   )
 
   val getVerbTenseAbstractedSlotsForQuestion = (

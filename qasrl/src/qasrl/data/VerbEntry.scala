@@ -9,8 +9,9 @@ import jjm.ling.en.InflectedForms
 import jjm.implicits._
 
 import monocle.macros.Lenses
+import io.circe.generic.JsonCodec
 
-@Lenses case class VerbEntry(
+@Lenses @JsonCodec case class VerbEntry(
   verbIndex: Int,
   verbInflectedForms: InflectedForms,
   questionLabels: SortedMap[String, QuestionLabel]
@@ -41,3 +42,4 @@ import monocle.macros.Lenses
     }
   }
 }
+object VerbEntry

@@ -1,5 +1,9 @@
 package qasrl.data
 
+import cats.data.NonEmptySet
+
+import jjm.ling.ESpan
+
 import monocle.macros.{GenPrism, Lenses}
 
 sealed trait AnswerJudgment {
@@ -16,8 +20,7 @@ sealed trait AnswerJudgment {
   def isAnswer = getAnswer.nonEmpty
 }
 case object InvalidQuestion extends AnswerJudgment
-// TODO: non-empty set
-@Lenses case class Answer(spans: Set[AnswerSpan]) extends AnswerJudgment
+@Lenses case class Answer(spans: NonEmptySet[ESpan]) extends AnswerJudgment
 
 object AnswerJudgment {
   val invalidQuestion = GenPrism[AnswerJudgment, InvalidQuestion.type]

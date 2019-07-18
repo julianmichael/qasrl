@@ -1,5 +1,7 @@
 package qasrl.crowd
 
+import cats.data.NonEmptySet
+
 import jjm.ling.HasToken
 import jjm.implicits._
 
@@ -66,7 +68,11 @@ class EvaluationDataExporter[SID, Word : HasToken](
                               case qasrl.crowd.InvalidQuestion => qasrl.data.InvalidQuestion
                               case qasrl.crowd.Answer(spans) =>
                                 Answer(
-                                  spans.map(s => AnswerSpan(s.begin, s.end + 1)).toSet
+                                  NonEmptySet.fromSet(
+                                    scala.collection.immutable.TreeSet(
+                                      spans.map(_.toExclusive): _*
+                                    )
+                                  ).get // TODO push error handling out
                                 )
                             }
                         )

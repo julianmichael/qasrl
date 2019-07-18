@@ -33,7 +33,7 @@ class QuestionTests extends FunSuite with Matchers {
 
   val genericInflectedForms = InflectedForms(
     stem = "stem".lowerCase,
-    present = "present".lowerCase,
+    presentSingular3rd = "presentSingular3rd".lowerCase,
     presentParticiple = "presentParticiple".lowerCase,
     past = "past".lowerCase,
     pastParticiple = "pastParticiple".lowerCase
