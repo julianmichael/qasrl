@@ -14,19 +14,6 @@ import qasrl.labeling._
 import spacro._
 import spacro.tasks._
 
-// import nlpdata.structure.AlignedToken
-
-// import nlpdata.datasets.wiktionary
-// import nlpdata.datasets.wiki1k.Wiki1kFileSystemService
-// import nlpdata.datasets.wiki1k.Wiki1kPath
-// import nlpdata.datasets.wiktionary.Inflections
-// import nlpdata.datasets.tqa.TQAFileSystemService
-
-// import nlpdata.util.LowerCaseStrings._
-// import nlpdata.util.Text
-// import nlpdata.util.HasTokens
-// import nlpdata.util.HasTokens.ops._
-
 import akka.actor._
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Source
