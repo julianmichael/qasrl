@@ -3,7 +3,7 @@ import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
 
-val thisPublishVersion = "0.2.0-SNAPSHOT"
+val thisPublishVersion = "0.2.0"
 
 val scalaVersions = List("2.12.8")
 val thisScalaJSVersion = "0.6.27"
@@ -12,9 +12,9 @@ val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
 // cats and react libs -- make sure versions match up
-val jjmVersion = "0.1.0-SNAPSHOT"
-val spacroVersion = "0.3.0-SNAPSHOT"
-val radhocVersion = "0.3.0-SNAPSHOT"
+val jjmVersion = "0.1.0"
+val spacroVersion = "0.3.0"
+val radhocVersion = "0.3.0"
 
 // end cats libs
 

@@ -6,6 +6,7 @@ import jjm.implicits._
 import cats.Order
 import cats.data.Ior
 import cats.data.NonEmptyList
+import cats.implicits._
 
 import QuestionProcessor.InProgressState
 import QuestionProcessor.ValidState
@@ -21,7 +22,7 @@ class Autocomplete(questionProcessor: QuestionProcessor) {
     goodStates: NonEmptyList[ValidState]
   ): Ior[NonEmptyList[Suggestion], NonEmptyList[QuestionProcessor.CompleteState]] =
     goodStates
-      .partition(ValidState.eitherIso.get)
+      .nonEmptyPartition(ValidState.eitherIso.get)
       .leftMap(ipss => ipss.map(createSuggestion).distinct.sorted)
 
   def apply(

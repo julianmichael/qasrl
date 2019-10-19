@@ -9,8 +9,8 @@ val thisScalaJSVersion = "0.6.27"
 val macroParadiseVersion = "2.1.0"
 val kindProjectorVersion = "0.9.4"
 
-val jjmVersion = "0.1.0-SNAPSHOT"
-val qasrlVersion = "0.2.0-SNAPSHOT"
+val jjmVersion = "0.1.0"
+val qasrlVersion = "0.2.0"
 
 val corenlpVersion = "3.6.0"
 
