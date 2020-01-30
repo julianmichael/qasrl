@@ -13,9 +13,10 @@ import cats.data.StateT
 import cats.data.State
 import cats.implicits._
 
-import monocle.macros._
+import monocle.macros.Lenses
+import io.circe.generic.JsonCodec
 
-@Lenses case class Frame(
+@Lenses @JsonCodec case class Frame(
   verbInflectedForms: InflectedForms,
   args: DependentMap[ArgumentSlot.Aux, Id],
   tense: Tense,
