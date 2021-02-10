@@ -4,6 +4,7 @@ import ammonite.ops._
 import coursier.maven.MavenRepository
 
 val thisPublishVersion = "0.3.0-SNAPSHOT"
+val qasrlBankPublishVersion = "0.4.0-SNAPSHOT"
 
 val scalaVersions = List(
   "2.12.13",
@@ -13,6 +14,7 @@ val thisScalaJSVersion = "1.4.0"
 
 val macroParadiseVersion = "2.1.1"
 val kindProjectorVersion = "0.11.3"
+val betterMonadicForVersion = "0.3.1"
 
 // cats and react libs -- make sure versions match up
 val jjmVersion = "0.2.0-SNAPSHOT"
@@ -67,7 +69,8 @@ trait CommonModule extends ScalaModule with ScalafmtModule {
 
   override def scalacPluginIvyDeps = super.scalacPluginIvyDeps() ++ Agg(
     // ivy"io.tryp:::splain:$splainVersion",
-    ivy"org.typelevel:::kind-projector:$kindProjectorVersion"
+    ivy"org.typelevel:::kind-projector:$kindProjectorVersion",
+    ivy"com.olegpy::better-monadic-for:$betterMonadicForVersion"
   ) ++ (
     if(scalaVersion().startsWith("2.12")) {
       Agg(ivy"org.scalamacros:::paradise:$macroParadiseVersion")
@@ -88,6 +91,10 @@ trait CommonPublishModule extends CommonModule with CrossScalaModule with Publis
       Developer("julianmichael", "Julian Michael","https://github.com/julianmichael")
     )
   )
+}
+
+trait CommonQasrlBankPublishModule extends CommonPublishModule {
+  def publishVersion = qasrlBankPublishVersion
 }
 
 trait QasrlModule extends CommonPublishModule {
@@ -141,4 +148,40 @@ object `qasrl-crowd` extends Module {
       ivy"com.github.japgolly.scalacss::ext-react::$scalajsScalaCSSVersion"
     )
   }
+}
+
+
+trait QasrlBankModule extends CommonQasrlBankPublishModule {
+  def artifactName = "qasrl-bank"
+  def millSourcePath = build.millSourcePath / "qasrl-bank"
+}
+
+object `qasrl-bank` extends Module {
+  class Jvm(val crossScalaVersion: String) extends QasrlBankModule with JvmPlatform {
+    def moduleDeps = Seq(qasrl.jvm())
+  }
+  object jvm extends Cross[Jvm](scalaVersions: _*)
+  class Js(val crossScalaVersion: String) extends QasrlBankModule with JsPlatform {
+    def moduleDeps = Seq(qasrl.js())
+  }
+  object js extends Cross[Js](scalaVersions: _*)
+}
+
+trait QasrlBankServiceModule extends CommonQasrlBankPublishModule {
+  def artifactName = "qasrl-bank-service"
+  def millSourcePath = build.millSourcePath / "qasrl-bank-service"
+  def ivyDeps = super.ivyDeps() ++ Agg(
+    ivy"org.julianmichael::jjm-io::$jjmVersion"
+  )
+}
+
+object `qasrl-bank-service` extends Module {
+  class Jvm(val crossScalaVersion: String) extends QasrlBankServiceModule with JvmPlatform {
+    def moduleDeps = Seq(`qasrl-bank`.jvm())
+  }
+  object jvm extends Cross[Jvm](scalaVersions: _*)
+  class Js(val crossScalaVersion: String) extends QasrlBankServiceModule with JsPlatform {
+    def moduleDeps = Seq(`qasrl-bank`.js())
+  }
+  object js extends Cross[Js](scalaVersions: _*)
 }
