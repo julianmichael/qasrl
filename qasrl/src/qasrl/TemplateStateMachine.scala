@@ -12,6 +12,8 @@ import monocle.macros._
 
 object TemplateStateMachine {
 
+  import Tense.Finite._
+
   @Lenses case class FrameState(
     whWord: Option[LowerCaseString],
     preposition: Option[LowerCaseString],
@@ -170,6 +172,7 @@ class TemplateStateMachine(
   overridePrepositions: Option[Set[LowerCaseString]] = None
 ) {
 
+  import Tense.Finite._
   import TemplateStateMachine._
 
   val initialFrameState = FrameState.initial(verbInflectedForms)
@@ -445,8 +448,8 @@ class TemplateStateMachine(
 
   // follows no aux
   val tensedVerb = progress(
-    (" " + presentSingular3rd.toString) -> modFrame(Frame.tense.set(PresentTense)).as(obj),
-    (" " + past.toString)    -> modFrame(Frame.tense.set(PastTense)).as(obj)
+    (" " + presentSingular3rd.toString) -> modFrame(Frame.tense.set(Present)).as(obj),
+    (" " + past.toString)    -> modFrame(Frame.tense.set(Past)).as(obj)
   )
 
   // neg/subj states carry the verb form through; so, all need to be constructed at construction time
@@ -487,9 +490,9 @@ class TemplateStateMachine(
   def haveAux(subjRequired: Boolean) = {
     val target = negContraction(subjRequired, pastParticipleVerb)
     progress(
-      " has" -> modFrame(Frame.tense.set(PresentTense) andThen Frame.isPerfect.set(true))
+      " has" -> modFrame(Frame.tense.set(Present) andThen Frame.isPerfect.set(true))
         .as(target),
-      " had" -> modFrame(Frame.tense.set(PastTense) andThen Frame.isPerfect.set(true)).as(target)
+      " had" -> modFrame(Frame.tense.set(Past) andThen Frame.isPerfect.set(true)).as(target)
     )
   }
 
@@ -517,16 +520,16 @@ class TemplateStateMachine(
   def doAux(subjRequired: Boolean) = {
     val target = negContraction(subjRequired, stemVerb)
     progress(
-      " does" -> modFrame(Frame.tense.set(PresentTense)).as(target),
-      " did"  -> modFrame(Frame.tense.set(PastTense)).as(target)
+      " does" -> modFrame(Frame.tense.set(Present)).as(target),
+      " did"  -> modFrame(Frame.tense.set(Past)).as(target)
     )
   }
 
   def beAux(subjRequired: Boolean) = {
     val target = negContraction(subjRequired, presentParticipleOrPassiveVerb)
     progress(
-      " is"  -> modFrame(Frame.tense.set(PresentTense)).as(target),
-      " was" -> modFrame(Frame.tense.set(PastTense)).as(target)
+      " is"  -> modFrame(Frame.tense.set(Present)).as(target),
+      " was" -> modFrame(Frame.tense.set(Past)).as(target)
     )
   }
 

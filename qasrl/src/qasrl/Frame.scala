@@ -38,8 +38,7 @@ import io.circe.generic.JsonCodec
 
   private[this] def getForms(s: LowerCaseString) = {
     if (verbInflectedForms.allForms.contains(s)) Some(verbInflectedForms)
-    else if (InflectedForms.beSingularForms.allForms.contains(s))
-      Some(InflectedForms.beSingularForms)
+    else if (InflectedForms.beSingularForms.allForms.contains(s)) Some(InflectedForms.beSingularForms)
     else if (InflectedForms.doForms.allForms.contains(s)) Some(InflectedForms.doForms)
     else if (InflectedForms.haveForms.allForms.contains(s)) Some(InflectedForms.haveForms)
     else None
@@ -62,37 +61,55 @@ import io.circe.generic.JsonCodec
     else if (isPerfect) PastParticiple
     else
       tense match {
-        case Modal(_)                           => Stem
+        case Tense.Finite.Modal(_)              => Stem
         case _ if (isNegated || subjectPresent) => Stem
-        case PastTense                          => Past
-        case PresentTense                       => PresentSingular3rd
+        case Tense.Finite.Past                  => Past
+        case Tense.Finite.Present               => PresentSingular3rd
+        case Tense.NonFinite.Bare               => Stem
+        case Tense.NonFinite.To                 => Stem
+        case Tense.NonFinite.Gerund             => PresentParticiple
       }
   }
 
   def getVerbStack = {
     def pass = State.pure[NonEmptyList[String], Unit](())
 
-    val stackState = for {
-      // start with verb stem
-      _               <- (if (isPassive) modForm(PastParticiple) >> push("be") else pass)
-      _               <- (if (isProgressive) modForm(PresentParticiple) >> push("be") else pass)
-      _               <- (if (isPerfect) modForm(PastParticiple) >> push("have") else pass)
-      postAspectStack <- State.get[NonEmptyList[String]]
-      _ <- tense match {
-        case Modal(m) => pushAll(modalTokens(m))
-        case PastTense =>
-          if (isNegated) {
-            if (postAspectStack.size == 1) push("didn't")
-            else (modForm(Past) >> modTop(_ + "n't"))
-          } else modForm(Past)
-        case PresentTense =>
-          if (isNegated) {
-            if (postAspectStack.size == 1) push("doesn't")
-            else (modForm(PresentSingular3rd) >> modTop(_ + "n't"))
-          } else modForm(PresentSingular3rd)
-      }
-    } yield ()
-
+    // this will start start with the verb stem
+    val stackState = tense match {
+      case Tense.NonFinite.Gerund => for {
+        _               <- (if (isPassive) modForm(PastParticiple) >> push("be") else pass)
+        _               <- (if (isProgressive && !isPassive && isPerfect) modForm(PresentParticiple) >> push("be") else pass)
+        _               <- (if (isPerfect) modForm(PastParticiple) >> push("have") else pass)
+        _               <- modForm(PresentParticiple)
+        _               <- (if (isNegated) push("not") else pass)
+      } yield ()
+      case _ => for {
+        _               <- (if (isPassive) modForm(PastParticiple) >> push("be") else pass)
+        _               <- (if (isProgressive) modForm(PresentParticiple) >> push("be") else pass)
+        _               <- (if (isPerfect) modForm(PastParticiple) >> push("have") else pass)
+        postAspectStack <- State.get[NonEmptyList[String]]
+        _ <- tense match {
+          case Tense.Finite.Modal(m) => pushAll(modalTokens(m))
+          case Tense.Finite.Past =>
+            if (isNegated) {
+              if (postAspectStack.size == 1) push("didn't")
+              else (modForm(Past) >> modTop(_ + "n't"))
+            } else modForm(Past)
+          case Tense.Finite.Present =>
+            if (isNegated) {
+              if (postAspectStack.size == 1) push("doesn't")
+              else (modForm(PresentSingular3rd) >> modTop(_ + "n't"))
+            } else modForm(PresentSingular3rd)
+          case nf: Tense.NonFinite =>
+            val verbMod = nf match {
+              case Tense.NonFinite.Bare => pass
+              case Tense.NonFinite.To => push("to")
+              case Tense.NonFinite.Gerund => ??? // won't happen; handled above
+            }
+            verbMod >> (if (isNegated) push("not") else pass)
+        }
+      } yield ()
+    }
     stackState.runS(NonEmptyList.of(verbInflectedForms.stem)).value
   }
 
@@ -101,13 +118,12 @@ import io.circe.generic.JsonCodec
       verbStack
     } else
       tense match {
-        case Modal(_)     => verbStack // should never happen, since a modal adds another token
-        case PastTense    => (modForm(Stem) >> push("did")).runS(verbStack).value
-        case PresentTense => (modForm(Stem) >> push("does")).runS(verbStack).value
+        case Tense.Finite.Past     => (modForm(Stem) >> push("did")).runS(verbStack).value
+        case Tense.Finite.Present  => (modForm(Stem) >> push("does")).runS(verbStack).value
+        case Tense.Finite.Modal(_) => verbStack // should never happen, since a modal adds another token
+        case _ => verbStack // Non-finite case, where splitting cannot occur
       }
   }
-
-  type ArgMap[A] = Map[ArgumentSlot, A]
 
   private[this] def append[A](a: A): StateT[List, List[Either[String, A]], Unit] =
     StateT.modify[List, List[Either[String, A]]](Right(a) :: _)
@@ -116,15 +132,17 @@ import io.circe.generic.JsonCodec
   private[this] def appendEither[A](e: Either[String, A]): StateT[List, List[Either[String, A]], Unit] =
     StateT.modify[List, List[Either[String, A]]](e :: _)
   private[this] def appendAllStrings[F[_]: Foldable, A](fs: F[String]): StateT[List, List[Either[String, A]], Unit] =
-    fs.foldM[StateT[List, List[Either[String, A]], ?], Unit](()) { case (_, s) => appendString(s) }
+    fs.foldM[StateT[List, List[Either[String, A]], *], Unit](()) { case (_, s) => appendString(s) }
   private[this] def appendAll[F[_]: Foldable, A](fs: F[Either[String, A]]): StateT[List, List[Either[String, A]], Unit] =
-    fs.foldM[StateT[List, List[Either[String, A]], ?], Unit](()) { case (_, s) => appendEither(s) }
+    fs.foldM[StateT[List, List[Either[String, A]], *], Unit](()) { case (_, s) => appendEither(s) }
   private[this] def choose[A, B](as: List[A]): StateT[List, List[Either[String, B]], A] =
     StateT.liftF[List, List[Either[String, B]], A](as)
   private[this] def pass[A]: StateT[List, List[Either[String, A]], Unit] =
     StateT.pure[List, List[Either[String, A]], Unit](())
   // private[this] def abort[A]: StateT[List, List[Either[String, A]], Unit] =
   //   choose[Unit, A](List[Unit]())
+
+  type ArgMap[A] = Map[ArgumentSlot, A]
 
   private[this] def renderNecessaryNoun[A](slot: ArgumentSlot.Aux[Noun], argValues: ArgMap[A]) = args.get(slot) match {
     case None       => choose[String, A](List("someone", "something")) >>= appendString[A]
@@ -161,29 +179,35 @@ import io.circe.generic.JsonCodec
     } else appendAllStrings[NonEmptyList, A](verbStack)
   }
 
-  def questionsForSlot(slot: ArgumentSlot) = questionsForSlotWithArgs(slot, Map())
-  def questionsForSlotWithArgs(slot: ArgumentSlot, argMap: ArgMap[String]) = {
-    val qStateT = slot match {
-      case Subj =>
-        renderWhNoun[String](Subj) >>
-        renderAuxThroughVerb(includeSubject = false, argMap) >>
-        renderArgIfPresent(Obj, argMap) >>
-        renderArgIfPresent(Obj2, argMap)
-      case Obj =>
-        renderWhNoun[String](Obj) >>
+  def questionsForSlot(slot: ArgumentSlot) = questionsForSlotWithArgs(Some(slot), Map())
+  def questionsForSlotWithArgs(slotOpt: Option[ArgumentSlot], argMap: ArgMap[String]) = {
+    val qStateT = slotOpt match {
+      case None =>
         renderAuxThroughVerb(includeSubject = true, argMap) >>
-        renderGap(Obj) >>
-        renderArgIfPresent(Obj2, argMap)
-      case Obj2 =>
-        renderWhOrAbort[Argument, String](Obj2) >>
-        renderAuxThroughVerb(includeSubject = true, argMap) >>
-        renderArgIfPresent(Obj, argMap) >>
-        renderGap(Obj2)
-      case Adv(wh) =>
-        append[String](wh.toString.capitalize) >>
-        renderAuxThroughVerb(includeSubject = true, argMap) >>
-        renderArgIfPresent(Obj, argMap) >>
-        renderArgIfPresent(Obj2, argMap)
+          renderArgIfPresent(Obj , argMap) >>
+          renderArgIfPresent(Obj2, argMap)
+      case Some(slot) => slot match {
+        case Subj =>
+          renderWhNoun[String](Subj) >>
+            renderAuxThroughVerb(includeSubject = false, argMap) >>
+            renderArgIfPresent(Obj, argMap) >>
+            renderArgIfPresent(Obj2, argMap)
+        case Obj =>
+          renderWhNoun[String](Obj) >>
+            renderAuxThroughVerb(includeSubject = true, argMap) >>
+            renderGap(Obj) >>
+            renderArgIfPresent(Obj2, argMap)
+        case Obj2 =>
+          renderWhOrAbort[Argument, String](Obj2) >>
+            renderAuxThroughVerb(includeSubject = true, argMap) >>
+            renderArgIfPresent(Obj, argMap) >>
+            renderGap(Obj2)
+        case Adv(wh) =>
+          append[String](wh.toString.capitalize) >>
+            renderAuxThroughVerb(includeSubject = true, argMap) >>
+            renderArgIfPresent(Obj, argMap) >>
+            renderArgIfPresent(Obj2, argMap)
+      }
     }
     qStateT.runS(List.empty[Either[String, String]]).map(_.reverse.map(_.merge).mkString(" ") + "?")
   }
@@ -200,20 +224,17 @@ import io.circe.generic.JsonCodec
     qStateT.runS(List.empty[Either[String, A]]).map(_.reverse)
   }
 
+  def clausesWithArgs(
+    argValues: Map[ArgumentSlot, String]
+  ): List[String] = {
+    genClausesWithArgs[String](argValues).map(_.map(_.merge).mkString(" "))
+  }
+
   def clausesWithArgMarkers = {
     genClausesWithArgs(args.keys.map(a => a.asInstanceOf[ArgumentSlot.Aux[Argument]]).map(a => a -> a).toMap)
   }
 
-  def clauses = {
-    genClausesWithArgs[String](Map()).map(_.map(_.merge).mkString(" "))
-    // val qStateT = {
-    //   renderNecessaryNoun(Subj) >>
-    //     renderAuxThroughVerb(includeSubject = false) >>
-    //     renderArgIfPresent(Obj) >>
-    //     renderArgIfPresent(Obj2)
-    // }
-    // qStateT.runS(List.empty[String]).map(_.reverse.mkString(" "))
-  }
+  def clauses = clausesWithArgs(Map())
 }
 
 object Frame {
@@ -222,7 +243,7 @@ object Frame {
     Frame(
       verbForms,
       DependentMap.empty[ArgumentSlot.Aux, Id],
-      PastTense,
+      Tense.Finite.Past,
       false,
       false,
       false,
