@@ -18,13 +18,14 @@ import io.circe.generic.JsonCodec
 
 @Lenses @JsonCodec case class Frame(
   verbInflectedForms: InflectedForms,
-  args: DependentMap[ArgumentSlot.Aux, Id],
+  structure: ArgStructure,
   tense: Tense,
   isPerfect: Boolean,
   isProgressive: Boolean,
-  isPassive: Boolean,
   isNegated: Boolean
 ) {
+  @inline def args = structure.args
+  @inline def isPassive = structure.isPassive
 
   private[this] def modalTokens(modal: LowerCaseString) =
     if (isNegated) {
@@ -239,12 +240,14 @@ import io.circe.generic.JsonCodec
 
 object Frame {
 
+  val args = structure.composeLens(ArgStructure.args)
+  val isPassive = structure.composeLens(ArgStructure.isPassive)
+
   def empty(verbForms: InflectedForms) =
     Frame(
       verbForms,
-      DependentMap.empty[ArgumentSlot.Aux, Id],
+      ArgStructure(DependentMap.empty[ArgumentSlot.Aux, Id], false),
       Tense.Finite.Past,
-      false,
       false,
       false,
       false
