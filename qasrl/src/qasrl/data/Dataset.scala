@@ -72,22 +72,22 @@ import jjm.implicits._
     val allKeys = this.sentences.keySet ++ that.sentences.keySet
     type Fails = List[Dataset.DataMergeFailure]
     this.sentences.merge(that.sentences).toList
-      .traverse[Writer[Fails, ?], (String, Sentence)] {
+      .traverse[Writer[Fails, *], (String, Sentence)] {
         case (sentenceId, sentenceEntryIor) =>
           sentenceEntryIor
-            .mergeM[Writer[Fails, ?]] { (xe, ye) =>
+            .mergeM[Writer[Fails, *]] { (xe, ye) =>
               xe.verbEntries.merge(ye.verbEntries).toList
-                .traverse[Writer[Fails, ?], (Int, VerbEntry)] {
+                .traverse[Writer[Fails, *], (Int, VerbEntry)] {
                   case (verbIndex, verbEntryIor) =>
                     verbEntryIor
-                      .mergeM[Writer[Fails, ?]](
+                      .mergeM[Writer[Fails, *]](
                         (xv, yv) =>
                           if (xv.verbIndex == yv.verbIndex && xv.verbInflectedForms == yv.verbInflectedForms) {
                             xv.questionLabels.merge(yv.questionLabels).toList
-                              .traverse[Writer[Fails, ?], (String, QuestionLabel)] {
+                              .traverse[Writer[Fails, *], (String, QuestionLabel)] {
                                 case (questionString, questionLabelIor) =>
                                   questionLabelIor
-                                    .mergeM[Writer[Fails, ?]](
+                                    .mergeM[Writer[Fails, *]](
                                       (xq, yq) =>
                                         xq.combineWithLike(yq) match {
                                           case Right(q) => Writer.value[Fails, QuestionLabel](q)
@@ -171,9 +171,9 @@ object Dataset {
           )
           System.err.println(msg)
         case VerbMergeFailure(sentenceId, sentenceTokens, v1, v2) =>
-          val thisVerbString = v1.verbIndex + " (" +
+          val thisVerbString = v1.verbIndex.toString + " (" +
           v1.verbInflectedForms.allForms.mkString(",") + ")"
-          val otherVerbString = v2.verbIndex + " (" +
+          val otherVerbString = v2.verbIndex.toString + " (" +
           v2.verbInflectedForms.allForms.mkString(",") + ")"
           System.err.println(s"Sentence: $sentenceId")
           System.err.println(s"Sentence tokens: " + sentenceTokens.mkString(" "))

@@ -11,7 +11,7 @@ object Styles extends StyleSheet.Inline {
   )
 
   val unselectable = style(
-    userSelect := "none"
+    userSelect.none
   )
 
   val answerIndicator = style(

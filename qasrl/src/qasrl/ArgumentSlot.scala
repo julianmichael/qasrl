@@ -49,6 +49,7 @@ object ArgumentSlot {
   implicit val argumentSlotKeyDecoder = KeyDecoder.instance(ArgumentSlot.fromString)
 
   implicit val argumentDependentEncoder = new DependentEncoder[ArgumentSlot.Aux, Id] {
+    @scala.annotation.nowarn // false positive
     final def apply[A](slot: ArgumentSlot.Aux[A]) = slot match {
       case Subj   => implicitly[Encoder[Noun]]
       case Obj    => implicitly[Encoder[Noun]]
@@ -58,6 +59,7 @@ object ArgumentSlot {
   }
 
   implicit val argumentDependentDecoder = new DependentDecoder[ArgumentSlot.Aux, Id] {
+    @scala.annotation.nowarn // false positive
     final def apply[A](slot: ArgumentSlot.Aux[A]) = slot match {
       case Subj   => implicitly[Decoder[Noun]]
       case Obj    => implicitly[Decoder[Noun]]
