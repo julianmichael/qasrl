@@ -32,8 +32,8 @@ import japgolly.scalajs.react.MonocleReact._
 
 import io.circe.{Encoder, Decoder}
 
-import radhoc.SpanSelection
-import radhoc.CacheCallContent
+import jjm.ui.SpanSelection
+import jjm.ui.CacheCallContent
 
 class QASRLValidationClient[SID: Encoder : Decoder](instructions: VdomTag)(
   implicit settings: QASRLSettings,

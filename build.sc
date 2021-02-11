@@ -19,7 +19,6 @@ val betterMonadicForVersion = "0.3.1"
 // cats and react libs -- make sure versions match up
 val jjmVersion = "0.2.0-SNAPSHOT"
 val spacroVersion = "0.4.0-SNAPSHOT"
-val radhocVersion = "0.4.0-SNAPSHOT"
 
 // end cats libs
 val scalatagsVersion = "0.9.3"
@@ -142,7 +141,7 @@ object `qasrl-crowd` extends Module {
   class QasrlCrowdJSModule(val crossScalaVersion: String) extends QasrlCrowdModule with JsPlatform {
     def moduleDeps = Seq(qasrl.js())
     def ivyDeps = super.ivyDeps() ++ Agg(
-      ivy"org.julianmichael::radhoc::$radhocVersion",
+      ivy"org.julianmichael::jjm-ui::$jjmVersion",
       ivy"org.scala-js::scalajs-dom::$scalajsDomVersion",
       ivy"be.doeraene::scalajs-jquery::$scalajsJqueryVersion",
       ivy"com.github.japgolly.scalacss::core::$scalaCSSVersion",
@@ -279,7 +278,7 @@ object apps extends Module {
       def mainClass = T(Some("qasrl.apps.browser.Main"))
 
       def ivyDeps = super.ivyDeps() ++ Agg(
-        ivy"org.julianmichael::radhoc::$radhocVersion",
+        ivy"org.julianmichael::jjm-ui::$jjmVersion",
         ivy"org.scala-js::scalajs-dom::$scalajsDomVersion",
         // ivy"com.github.japgolly.scalacss::core::$scalaCSSVersion",
         ivy"com.github.japgolly.scalacss::ext-react::$scalaCSSVersion"

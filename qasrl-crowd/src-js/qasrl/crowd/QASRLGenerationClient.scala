@@ -50,9 +50,9 @@ import japgolly.scalajs.react.CatsReact._
 
 import io.circe.{Encoder, Decoder}
 
-import radhoc.SpanSelection
-import radhoc.CacheCallContent
-import radhoc.LocalState
+import jjm.ui.SpanSelection
+import jjm.ui.CacheCallContent
+import jjm.ui.LocalState
 
 class QASRLGenerationClient[SID: Encoder : Decoder](instructions: VdomTag)(
   implicit settings: QASRLSettings,
