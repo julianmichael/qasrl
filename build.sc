@@ -185,3 +185,33 @@ object `qasrl-bank-service` extends Module {
   }
   object js extends Cross[Js](scalaVersions: _*)
 }
+
+val declineVersion = "1.3.0"
+val logbackVersion = "1.2.3"
+val scalaCsvVersion = "1.3.6"
+
+trait AppJvmModule extends CommonModule with JvmPlatform {
+  val version = scalaVersions.head
+  def scalaVersion = T(version)
+  def moduleDeps = Seq(
+    qasrl.jvm(version),
+    `qasrl-bank`.jvm(version),
+    `qasrl-bank-service`.jvm(version))
+  override def ivyDeps = super.ivyDeps() ++ Agg(
+    ivy"com.monovore::decline::$declineVersion",
+    ivy"com.monovore::decline-effect::$declineVersion",
+    ivy"ch.qos.logback:logback-classic:$logbackVersion"
+  )
+}
+
+object apps extends Module {
+  object align extends AppJvmModule {
+    override def ivyDeps = super.ivyDeps() ++ Agg(
+      ivy"com.github.tototoshi::scala-csv:$scalaCsvVersion"
+    )
+  }
+
+  object resolution extends AppJvmModule
+
+  object reprocess extends AppJvmModule
+}
