@@ -22,13 +22,14 @@ val spacroVersion = "0.4.0-SNAPSHOT"
 val radhocVersion = "0.4.0-SNAPSHOT"
 
 // end cats libs
+val scalatagsVersion = "0.9.3"
 
 val scalaLoggingVersion = "3.9.2"
 val slf4jApiVersion = "1.7.30"
 
 val scalajsDomVersion = "1.1.0"
 val scalajsJqueryVersion = "1.0.0"
-val scalajsScalaCSSVersion = "0.7.0"
+val scalaCSSVersion = "0.7.0"
 
 val scalatestVersion = "3.2.2"
 val scalacheckVersion = "1.14.1"
@@ -144,8 +145,8 @@ object `qasrl-crowd` extends Module {
       ivy"org.julianmichael::radhoc::$radhocVersion",
       ivy"org.scala-js::scalajs-dom::$scalajsDomVersion",
       ivy"be.doeraene::scalajs-jquery::$scalajsJqueryVersion",
-      ivy"com.github.japgolly.scalacss::core::$scalajsScalaCSSVersion",
-      ivy"com.github.japgolly.scalacss::ext-react::$scalajsScalaCSSVersion"
+      ivy"com.github.japgolly.scalacss::core::$scalaCSSVersion",
+      ivy"com.github.japgolly.scalacss::ext-react::$scalaCSSVersion"
     )
   }
 }
@@ -189,22 +190,56 @@ object `qasrl-bank-service` extends Module {
 val declineVersion = "1.3.0"
 val logbackVersion = "1.2.3"
 val scalaCsvVersion = "1.3.6"
+import mill.api.DummyInputStream
+import mill.eval.Result
+import $file.scripts.SimpleJSDepsBuild, SimpleJSDepsBuild.SimpleJSDeps
 
-trait AppJvmModule extends CommonModule with JvmPlatform {
-  val version = scalaVersions.head
-  def scalaVersion = T(version)
-  def moduleDeps = Seq(
-    qasrl.jvm(version),
-    `qasrl-bank`.jvm(version),
-    `qasrl-bank-service`.jvm(version))
-  override def ivyDeps = super.ivyDeps() ++ Agg(
-    ivy"com.monovore::decline::$declineVersion",
-    ivy"com.monovore::decline-effect::$declineVersion",
-    ivy"ch.qos.logback:logback-classic:$logbackVersion"
-  )
+trait FlexRunnable extends ScalaModule with JvmPlatform {
+  // for using runMain in commands
+  def runMainFn = T.task { (mainClass: String, args: Seq[String]) =>
+    import mill.modules.Jvm
+    import mill.eval.Result
+    try Result.Success(
+      Jvm.runSubprocess(
+        mainClass,
+        runClasspath().map(_.path),
+        forkArgs(),
+        forkEnv(),
+        args,
+        workingDir = ammonite.ops.pwd
+      )
+    ) catch {
+      case e: InteractiveShelloutException =>
+        Result.Failure("subprocess failed")
+    }
+  }
 }
 
 object apps extends Module {
+
+  trait AppJvmModule extends CommonModule with JvmPlatform {
+    val version = scalaVersions.head
+    def scalaVersion = T(version)
+    def moduleDeps = Seq(
+      qasrl.jvm(version),
+      `qasrl-bank`.jvm(version),
+      `qasrl-bank-service`.jvm(version))
+    override def ivyDeps = super.ivyDeps() ++ Agg(
+      ivy"com.monovore::decline::$declineVersion",
+      ivy"com.monovore::decline-effect::$declineVersion",
+      ivy"ch.qos.logback:logback-classic:$logbackVersion"
+    )
+  }
+
+  trait AppJsModule extends CommonModule with JsPlatform {
+    val version = scalaVersions.head
+    def scalaVersion = T(version)
+    def moduleDeps = Seq(
+      qasrl.js(version),
+      `qasrl-bank`.js(version),
+      `qasrl-bank-service`.js(version))
+  }
+
   object align extends AppJvmModule {
     override def ivyDeps = super.ivyDeps() ++ Agg(
       ivy"com.github.tototoshi::scala-csv:$scalaCsvVersion"
@@ -214,4 +249,46 @@ object apps extends Module {
   object resolution extends AppJvmModule
 
   object reprocess extends AppJvmModule
+
+  object browser extends Module {
+
+    def serve(args: String*) = T.command {
+      if (T.ctx().log.inStream == DummyInputStream){
+        Result.Failure("server needs to be run with the -i/--interactive flag")
+      } else {
+        val runMain = jvm.runMainFn()
+        runMain(
+          "qasrl.apps.browser.Serve", Seq(
+            "--js",        js.fastOpt().path.toString,
+            "--jsDeps",    js.aggregatedJSDeps().path.toString
+          ) ++ args
+        )
+      }
+    }
+
+    object jvm extends AppJvmModule with FlexRunnable {
+      def millSourcePath = browser.millSourcePath
+
+      override def ivyDeps = super.ivyDeps() ++ Agg(
+        ivy"com.lihaoyi::scalatags:$scalatagsVersion"
+      )
+    }
+    object js extends AppJsModule with JsPlatform with SimpleJSDeps {
+      def millSourcePath = browser.millSourcePath
+
+      def mainClass = T(Some("qasrl.apps.browser.Main"))
+
+      def ivyDeps = super.ivyDeps() ++ Agg(
+        ivy"org.julianmichael::radhoc::$radhocVersion",
+        ivy"org.scala-js::scalajs-dom::$scalajsDomVersion",
+        // ivy"com.github.japgolly.scalacss::core::$scalaCSSVersion",
+        ivy"com.github.japgolly.scalacss::ext-react::$scalaCSSVersion"
+      )
+
+      def jsDeps = Agg(
+        "https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react-dom.js"
+      )
+    }
+  }
 }

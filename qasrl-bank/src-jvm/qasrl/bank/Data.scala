@@ -103,12 +103,6 @@ object Data {
     Files.write(path, printer.print(index.asJson).getBytes("UTF-8"))
   }
 
-  def writeIndexJS(path: Path, index: DataIndex) = {
-    val printer = io.circe.Printer.noSpaces
-    val res = "var dataMetaIndex = " + printer.print(index.asJson) + ";"
-    Files.write(path, res.getBytes("UTF-8"))
-  }
-
   def readIndexZipped(path: Path): Try[DataIndex] = Try {
     import java.io.FileInputStream
     import java.util.zip.GZIPInputStream
