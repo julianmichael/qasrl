@@ -21,13 +21,23 @@ def show_progress(count, block_size, total_size):
                     (percent, progress_size / (1024 * 1024), speed, duration))
     sys.stdout.flush()
 
-Dataset = namedtuple('Dataset', ['name', 'path', 'url', 'description'])
+Dataset = namedtuple('Dataset', ['name', 'path', 'url', 'ext', 'description'])
+
 
 datasets = [
+    Dataset(
+        name = 'Wiktionary Inflections',
+        path = 'data/wiktionary',
+        url = 'https://www.dropbox.com/s/60hbl3py7g3tx12/wiktionary.tar.gz?dl=1',
+        ext = '.tar.gz',
+        description = "An old Wiktionary scrape containing lots of English verb inflections. "
+        "This is what's usually used to inflect verbs in QA-SRL."
+    ),
     Dataset(
         name = 'QA-SRL Bank 2.0',
         path = 'data/qasrl-v2',
         url = 'http://qasrl.org/data/qasrl-v2.tar',
+        ext = '.tar',
         description = "Described in 'Large-Scale QA-SRL Parsing', "
         "FitzGerald et al., ACL 2018."
         "\nDeprecated in favor of v2.1 due to minor changes in slot definitions."
@@ -37,6 +47,7 @@ datasets = [
         name = 'QA-SRL Bank 2.1',
         path = 'data/qasrl-v2_1',
         url = 'http://qasrl.org/data/qasrl-v2_1.tar',
+        ext = '.tar',
         description = "Updated from 2.0 to make minor fixes to slot definitions "
         "(see data/FORMAT.md)."
     ),
@@ -44,6 +55,7 @@ datasets = [
         name = 'QANom',
         path = 'data/qanom',
         url = 'http://qasrl.org/data/qanom.tar',
+        ext = '.tar',
         description = "Described in 'QANom: Question-Answer driven SRL for Nominalizations', "
         "\nKlein et al., COLING 2020."
         "\nhttps://www.aclweb.org/anthology/2020.coling-main.274/"
@@ -65,15 +77,15 @@ def get_dataset_option_prompt(num, dataset):
 
 
 def construct_prompt():
-    prompt = "Which dataset would you like to download? ('all' to download all, 'q' to quit)"
+    prompt = "Which dataset would you like to download? ('all' to download all, 'q' to quit)\n"
     for i, dataset in enumerate(datasets):
         prompt += "\n" + get_dataset_option_prompt(i + 1, dataset)
     return prompt
 
 def download_dataset(dataset):
     print("Downloading {}.".format(dataset.name))
-    if(choice.url.endswith(".tar")):
-       tarpath = choice.path + ".tar"
+    if len(choice.ext) > 0:
+       tarpath = choice.path + choice.ext
        urllib.request.urlretrieve(choice.url, tarpath, show_progress)
        result = tarfile.open(tarpath)
        result.extractall(os.path.dirname(choice.path))
@@ -112,5 +124,7 @@ while True:
             if shouldDownloadStr.startswith("y") or \
                shouldDownloadStr.startswith("Y"):
                 download_dataset(choice)
+                should_refresh_prompt = True
         else:
             download_dataset(choice)
+            should_refresh_prompt = True
