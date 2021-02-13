@@ -2,7 +2,6 @@
 *.log
 
 /out
-/qasrl-crowd-example/out
 /.bloop
 /.metals
 /.ammonite
