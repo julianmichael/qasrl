@@ -3,8 +3,7 @@ import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
 
-val thisPublishVersion = "0.3.0-SNAPSHOT"
-val qasrlBankPublishVersion = "0.4.0-SNAPSHOT"
+val thisPublishVersion = "0.3.0"
 
 val scalaVersions = List(
   "2.12.13",
@@ -86,15 +85,11 @@ trait CommonPublishModule extends CommonModule with CrossScalaModule with Publis
     organization = "org.julianmichael",
     url = "https://github.com/julianmichael/qasrl-crowdsourcing",
     licenses = Seq(License.MIT),
-    versionControl = VersionControl.github("julianmichael", "qasrl-crowdsourcing"),
+    versionControl = VersionControl.github("julianmichael", "qasrl"),
     developers = Seq(
       Developer("julianmichael", "Julian Michael","https://github.com/julianmichael")
     )
   )
-}
-
-trait CommonQasrlBankPublishModule extends CommonPublishModule {
-  def publishVersion = qasrlBankPublishVersion
 }
 
 trait QasrlModule extends CommonPublishModule {
@@ -151,7 +146,7 @@ object `qasrl-crowd` extends Module {
 }
 
 
-trait QasrlBankModule extends CommonQasrlBankPublishModule {
+trait QasrlBankModule extends CommonPublishModule {
   def artifactName = "qasrl-bank"
   def millSourcePath = build.millSourcePath / "qasrl-bank"
 }
@@ -167,7 +162,7 @@ object `qasrl-bank` extends Module {
   object js extends Cross[Js](scalaVersions: _*)
 }
 
-trait QasrlBankServiceModule extends CommonQasrlBankPublishModule {
+trait QasrlBankServiceModule extends CommonPublishModule {
   def artifactName = "qasrl-bank-service"
   def millSourcePath = build.millSourcePath / "qasrl-bank-service"
   def ivyDeps = super.ivyDeps() ++ Agg(
