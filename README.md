@@ -1,39 +1,41 @@
-# qasrl-crowdsourcing
+# qasrl
 
-Repository for QA-SRL tools, particularly for interaction and crowdsourcing.
+Repository for QA-SRL tools and data, including interaction, crowdsourcing, and the QA-SRL Bank 2.0.
 
 ## Contents
 
-There are currently three projects in this repository.
+This repository contains several modules and data utilities.
 
- * `qasrl`: General tools for validating, interpreting, and autocompleting QA-SRL.
+ * `qasrl`: General tools for validating, manipulating, and autocompleting QA-SRL.
  * `qasrl-crowd`: UI and server code for for crowdsourcing QA-SRL data on Mechanical Turk.
  * `qasrl-crowd-example`: Standalone Mill project demonstrating how to use the crowdsourcing pipeline for your own data.
+ * `qasrl-bank`: Client library for the QA-SRL Bank 2.0.
+ * `qasrl-bank-service`: HTTP service and server implementations for using the QA-SRL Bank 2.0.
+ * `apps/`: Several applications using QA-SRL, including a webapp for browsing the QA-SRL Bank 2.0.
+ * `data/`: QA-SRL data documentation and datasets (downloadable interactively with `scripts/download_data.py`).
 
 ## Usage
 
-Relevant imports for this project are as follows:
+The four modules `qasrl`, `qasrl-crowd`, `qasrl-bank`, and `qasrl-bank-service` are published on Maven Central. To use them, add e.g.,
 ```
-  libraryDependencies += "org.julianmichael" %%% "qasrl" % "0.1.0"
-  libraryDependencies += "org.julianmichael" %%% "qasrl-crowd" % "0.1.0"
+  libraryDependencies += "org.julianmichael" %%% "qasrl" % "0.2.0"
 ```
-in your sbt project settings, or 
+to your sbt project settings, or 
 ```
-  ivy"org.julianmichael::qasrl::0.1.0",
-  ivy"org.julianmichael::qasrl-crowd::0.1.0"
+  ivy"org.julianmichael::qasrl::0.2.0",
 ```
-in your Mill `ivyDeps`.
-You then need to download the Wiktionary data and place it somewhere accessible by your project
-so you can inflect verbs.
+to your Mill `ivyDeps` (and similarly for the other modules). To inflect verbs you will need our Wiktionary scrape (either via `scripts/download_data.py`) or [here](https://www.dropbox.com/s/60hbl3py7g3tx12/wiktionary.tar.gz?dl=1).
 
-To run the scripts and example project in this repo, you need
-[Mill](http://www.lihaoyi.com/mill/index.html) version 0.2.5 or later.
+To compile this project and run the apps or example project in this repo, you need
+[Mill](http://www.lihaoyi.com/mill/index.html).
 
 ### Running the example project
 
-Run `qasrl-crowd-example/scripts/setup.sh`.
-This will prompt you to download the Wiktionary dataset, which you should do.
+Run `python scripts/download_data.py` and download the Wiktionary dataset.
 Then run `qasrl-crowd-example/scripts/run_crowd_example.sh`.
+Note that the example project uses an old version of the `qasrl` libraries as a dependency.
+Unfortunately a recent dependency upgrade seems to have broken the crowdsourcing interfaces
+and I haven't figured out the fix yet.
 
 ### Autocomplete
 
@@ -54,9 +56,9 @@ to the local code. To trace the main entry points:
 
  * [`scripts/crowd_example.scala`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd-example/scripts/crowd_example.scala)
    is what you run on the SBT console to get started.
- * That creates an [`AnnotationSetup`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd-example/example/src-jvm/example/AnnotationSetup.scala) object defined in `qasrl-crowd-example`,
+ * That creates an [`AnnotationSetup`](https://github.com/julianmichael/qasrl/blob/master/qasrl-crowd-example/example/src-jvm/example/AnnotationSetup.scala) object defined in `qasrl-crowd-example`,
    which assembles the various data and resources needed for the crowdsourcing pipeline.
- * That creates a [`QASRLAnnotationPipeline`](https://github.com/julianmichael/qasrl-crowdsourcing/blob/master/qasrl-crowd/src-jvm/qasrl/crowd/QASRLAnnotationPipeline.scala) object,
+ * That creates a [`QASRLAnnotationPipeline`](https://github.com/julianmichael/qasrl/blob/master/qasrl-crowd/src-jvm/qasrl/crowd/QASRLAnnotationPipeline.scala) object,
    which creates the web services and interfaces with MTurk to upload and download data and assess workers.
  * Finally, telling the `QASRLAnnotationPipeline` object to `start()` will start the crowdsourcing task.
  
