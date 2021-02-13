@@ -1,6 +1,0 @@
-[submodule "lib/nlpdata"]
-	path = lib/nlpdata
-	url = git@github.com:julianmichael/nlpdata.git
-[submodule "lib/spacro"]
-	path = lib/spacro
-	url = https://github.com/julianmichael/spacro.git
