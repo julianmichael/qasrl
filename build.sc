@@ -16,9 +16,9 @@ val macroParadiseVersion = "2.1.1"
 val kindProjectorVersion = "0.11.3"
 val betterMonadicForVersion = "0.3.1"
 
-// cats and react libs -- make sure versions match up
-val jjmVersion = "0.2.0-SNAPSHOT"
-val spacroVersion = "0.4.0-SNAPSHOT"
+// my libs -- make sure versions match up
+val jjmVersion = "0.2.0"
+val spacroVersion = "0.4.0"
 
 // end cats libs
 val scalatagsVersion = "0.9.3"

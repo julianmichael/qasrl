@@ -587,15 +587,15 @@ class QASRLGenerationClient[SID: Encoder : Decoder](instructions: VdomTag)(
                   ^.classSet1("btn btn-primary btn-lg btn-block"),
                   ^.margin := "5px",
                   ^.`type` := "submit",
-                  ^.disabled := isNotAssigned || getAllCompleteQAPairs(s).size == 0
+                  ^.disabled := isNotAssigned || getAllCompleteQAPairs(s).size == 0,
+                  ^.id := FieldLabels.submitButtonLabel,
+                  ^.value := (
+                    if (isNotAssigned) "You must accept the HIT to submit results"
+                    else if (getAllCompleteQAPairs(s).size == 0)
+                      "You must write and answer at least one question to submit results"
+                    else "Submit"
+                  )
                 ),
-                ^.id := FieldLabels.submitButtonLabel,
-                ^.value := (
-                  if (isNotAssigned) "You must accept the HIT to submit results"
-                  else if (getAllCompleteQAPairs(s).size == 0)
-                    "You must write and answer at least one question to submit results"
-                  else "Submit"
-                )
               )
           }
       }

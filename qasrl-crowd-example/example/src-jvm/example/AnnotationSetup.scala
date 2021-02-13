@@ -35,8 +35,6 @@ class AnnotationSetup(
   frozenValidationHITTypeId: Option[String] = None
 )(implicit config: TaskConfig) {
 
-  val resourcePath = java.nio.file.Paths.get("datasets")
-
   import java.nio.file.{Files, Path, Paths}
   private[this] val liveDataPath = Paths.get(s"data/example/$label/live")
   val liveAnnotationDataService = new FileSystemAnnotationDataService(liveDataPath)
@@ -85,7 +83,7 @@ class AnnotationSetup(
   def isTest(sid: SentenceId) = testIds.contains(sid)
 
   lazy val Wiktionary = new WiktionaryFileSystemService(
-    resourcePath.resolve("wiktionary")
+    java.nio.file.Paths.get("../data/wiktionary")
   )
 
   val getSentenceTokens = (id: SentenceId) => processedSentences(id.index)

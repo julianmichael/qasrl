@@ -3,11 +3,11 @@ import mill.scalalib.scalafmt._
 import ammonite.ops._
 import coursier.maven.MavenRepository
 
-val thisScalaVersion = "2.12.8"
-val thisScalaJSVersion = "0.6.27"
+val thisScalaVersion = "2.12.13"
+val thisScalaJSVersion = "0.6.33"
 
-val macroParadiseVersion = "2.1.0"
-val kindProjectorVersion = "0.9.4"
+val macroParadiseVersion = "2.1.1"
+val kindProjectorVersion = "0.11.3"
 
 val jjmVersion = "0.1.0"
 val qasrlVersion = "0.2.0"
@@ -69,7 +69,7 @@ trait ExampleModule extends ScalaModule with ScalafmtModule {
 
   def scalacPluginIvyDeps = super.scalacPluginIvyDeps() ++ Agg(
     ivy"org.scalamacros:::paradise:$macroParadiseVersion",
-    ivy"org.spire-math::kind-projector:$kindProjectorVersion"
+    ivy"org.typelevel:::kind-projector:$kindProjectorVersion"
   )
 }
 

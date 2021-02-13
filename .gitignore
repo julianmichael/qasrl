@@ -1,7 +1,8 @@
 *.class
 *.log
 
-/out/
-/.bloop/
-/.metals/
-/.ammonite/
+/out
+/qasrl-crowd-example/out
+/.bloop
+/.metals
+/.ammonite
