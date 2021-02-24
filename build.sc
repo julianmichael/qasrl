@@ -16,7 +16,7 @@ val kindProjectorVersion = "0.11.3"
 val betterMonadicForVersion = "0.3.1"
 
 // my libs -- make sure versions match up
-val jjmVersion = "0.2.0"
+val jjmVersion = "0.2.1-SNAPSHOT"
 val spacroVersion = "0.4.0"
 
 // end cats libs

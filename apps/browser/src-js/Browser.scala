@@ -59,6 +59,8 @@ import qasrl.data.QuestionLabel
 
 object Browser {
 
+  def black = Rgba(0, 0, 0, 1.0)
+
   val StateLocal = new LocalState[State]
   val IndexFetch = new CacheCallContent[Unit, DataIndex]
   val SearchFetch = new CacheCallContent[Set[LowerCaseString], Set[DocumentId]]
@@ -69,6 +71,9 @@ object Browser {
   val BoolLocal = new LocalState[Boolean]
   val OptIntLocal = new LocalState[Option[Int]]
   val QuestionLabelSetLocal = new LocalState[Set[QuestionLabel]]
+
+  val S = BrowserStyles
+  val V = new View(S)
 
   case class Props(
     qasrl: DocumentService[OrWrapped[AsyncCallback, *]]
@@ -161,21 +166,6 @@ object Browser {
     Rgba(  0, 255, 128, 0.1)  // blue-green
   )
 
-  def checkboxToggle[A](
-    label: String,
-    isValueActive: StateSnapshot[Boolean]
-  ) = <.div(
-    <.input(S.checkbox)(
-      ^.`type` := "checkbox",
-      ^.value := label,
-      ^.checked := isValueActive.value,
-      ^.onChange --> isValueActive.modState(!_)
-    ),
-    <.span(S.checkboxLabel)(
-      label
-    )
-  )
-
   def searchPane(search: StateSnapshot[Search]) = {
     val query = search.value.text.split("\\s+")
       .map(_.trim).toSet
@@ -213,20 +203,20 @@ object Browser {
     val slices = filter.zoomStateL(Filters.slices)
     <.div(S.filterContainer)(
       <.div(S.partitionChooser)(
-        checkboxToggle("Train", filter.zoomStateL(Filters.train)),
-        checkboxToggle("Dev",   filter.zoomStateL(Filters.dev)),
-        checkboxToggle("Test",  filter.zoomStateL(Filters.test))(^.visibility := "hidden")
+        <.div(V.Checkbox(filter.zoomStateL(Filters.train), "Train")),
+        <.div(V.Checkbox(filter.zoomStateL(Filters.dev), "Dev")),
+        <.div(^.visibility := "hidden")(V.Checkbox(filter.zoomStateL(Filters.test), "Test"))
       ),
       <.div(S.domainChooser)(
-        checkboxToggle("Wikipedia", filter.zoomStateL(Filters.wikipedia)),
-        checkboxToggle("Wikinews",  filter.zoomStateL(Filters.wikinews)),
-        checkboxToggle("TQA",       filter.zoomStateL(Filters.tqa))
+        <.div(V.Checkbox(filter.zoomStateL(Filters.wikipedia), "Wikipedia")),
+        <.div(V.Checkbox(filter.zoomStateL(Filters.wikinews),   "Wikinews")),
+        <.div(V.Checkbox(filter.zoomStateL(Filters.tqa),             "TQA"))
       ),
       <.div(S.sliceChooser)(
-        checkboxToggle("Original",  slices.zoomStateL(Slices.original)),
-        checkboxToggle("Expansion", slices.zoomStateL(Slices.expansion)),
-        checkboxToggle("Eval",      slices.zoomStateL(Slices.eval)),
-        checkboxToggle("QANom",     slices.zoomStateL(Slices.qaNom)),
+        <.div(V.Checkbox(slices.zoomStateL(Slices.original),    "Original")),
+        <.div(V.Checkbox(slices.zoomStateL(Slices.expansion),  "Expansion")),
+        <.div(V.Checkbox(slices.zoomStateL(Slices.eval),            "Eval")),
+        <.div(V.Checkbox(slices.zoomStateL(Slices.qaNom),          "QANom")),
       )
     )
   }
@@ -441,7 +431,7 @@ object Browser {
         <.span(" QANom")
       ),
       <.div(S.validityLegend)(
-        checkboxToggle("Valid only ", validOnly)(
+        <.div(V.Checkbox(validOnly, "Valid only "))(
           ^.marginLeft := "20px", ^.display := "inline"
         ),
         <.span("("),
@@ -451,7 +441,7 @@ object Browser {
         <.span(")")
       ),
       <.div(S.qaNomFilterLegend)(
-        checkboxToggle("QANom sentences only ", qaNomOnly)(
+        <.div(V.Checkbox(qaNomOnly, "QANom sentences only "))(
           ^.marginLeft := "20px", ^.display := "inline"
         )
       ),
@@ -535,101 +525,6 @@ object Browser {
     Order.by[QuestionLabel, String](_.questionString)
   )
 
-  sealed trait SpanColoringSpec {
-    def spansWithColors: List[(ESpan, Rgba)]
-  }
-  case class RenderWholeSentence(val spansWithColors: List[(ESpan, Rgba)]) extends SpanColoringSpec
-  case class RenderRelevantPortion(spansWithColorsNel: NonEmptyList[(ESpan, Rgba)]) extends SpanColoringSpec {
-    def spansWithColors = spansWithColorsNel.toList
-  }
-
-  def renderSentenceWithHighlights(
-    sentenceTokens: Vector[String],
-    coloringSpec: SpanColoringSpec,
-    wordRenderers: Map[Int, VdomTag => VdomTag] = Map()
-  ) = {
-    val containingSpan = coloringSpec match {
-      case RenderWholeSentence(_) =>
-        ESpan(0, sentenceTokens.size)
-      case RenderRelevantPortion(swcNel) =>
-        val spans = swcNel.map(_._1)
-        ESpan(spans.map(_.begin).minimum, spans.map(_.end).maximum)
-    }
-    val wordIndexToLayeredColors = (containingSpan.begin until containingSpan.end).map { i =>
-      i -> coloringSpec.spansWithColors.collect {
-        case (span, color) if span.contains(i) => color
-      }
-    }.toMap
-    val indexAfterToSpaceLayeredColors = ((containingSpan.begin + 1) to containingSpan.end).map { i =>
-      i -> coloringSpec.spansWithColors.collect {
-        case (span, color) if span.contains(i - 1) && span.contains(i) => color
-      }
-    }.toMap
-    Text.renderTokens[Int, List, List[VdomElement]](
-      words = sentenceTokens.indices.toList,
-      getToken = (index: Int) => sentenceTokens(index),
-      spaceFromNextWord = (nextIndex: Int) => {
-        if(!containingSpan.contains(nextIndex) || nextIndex == containingSpan.begin) List() else {
-          val colors = indexAfterToSpaceLayeredColors(nextIndex)
-          val colorStr = NonEmptyList[Rgba](transparent, colors)
-            .reduce((x: Rgba, y: Rgba) => x add y).toColorStyleString
-          List(
-            <.span(
-              ^.key := s"space-$nextIndex",
-              ^.style := js.Dynamic.literal("backgroundColor" -> colorStr),
-              " "
-            )
-          )
-        }
-      },
-      renderWord = (index: Int) => {
-        if(!containingSpan.contains(index)) List() else {
-          val colorStr = NonEmptyList(transparent, wordIndexToLayeredColors(index))
-            .reduce((x: Rgba, y: Rgba) => x add y).toColorStyleString
-          val render: (VdomTag => VdomTag) = wordRenderers.get(index).getOrElse((x: VdomTag) => x)
-          val element: VdomTag = render(
-            <.span(
-              ^.style := js.Dynamic.literal("backgroundColor" -> colorStr),
-              Text.normalizeToken(sentenceTokens(index))
-            )
-          )
-          List(element(^.key := s"word-$index"))
-        }
-      }
-    ).toVdomArray(x => x)
-  }
-
-  def makeAllHighlightedAnswer(
-    sentenceTokens: Vector[String],
-    answers: NonEmptyList[Answer],
-    color: Rgba
-  ): VdomArray = {
-    val orderedSpans = answers.flatMap(_.spans.toNonEmptyList).sorted
-    case class GroupingState(
-      completeGroups: List[NonEmptyList[ESpan]],
-      currentGroup: NonEmptyList[ESpan]
-    )
-    val groupingState = orderedSpans.tail.foldLeft(GroupingState(Nil, NonEmptyList.of(orderedSpans.head))) {
-      case (GroupingState(groups, curGroup), span) =>
-        if(curGroup.exists(_.overlaps(span))) {
-          GroupingState(groups, span :: curGroup)
-        } else {
-          GroupingState(curGroup :: groups, NonEmptyList.of(span))
-        }
-    }
-    val contigSpanLists = NonEmptyList(groupingState.currentGroup, groupingState.completeGroups)
-    val answerHighlighties = contigSpanLists.reverse.map(spanList =>
-      List(
-        <.span(
-          renderSentenceWithHighlights(sentenceTokens, RenderRelevantPortion(spanList.map(_ -> color)))
-        )
-      )
-    ).intercalate(List(<.span(" / ")))
-    answerHighlighties.zipWithIndex.toVdomArray { case (a, i) =>
-      a(^.key := s"answerString-$i")
-    }
-  }
-
   def shouldAnswerBeIncluded(
     source: AnswerSource,
     slices: Slices
@@ -702,7 +597,8 @@ object Browser {
                 case AnswerLabel(sourceId, Answer(spans)) => Answer(spans)
               }
             ).whenDefined { answersNel =>
-              makeAllHighlightedAnswer(sentence.sentenceTokens, answersNel, color)
+              val highlights = answersNel.flatMap(_.spans.toNonEmptyList).sorted.map(_ -> color)
+              V.Spans.renderHighlights(sentence.sentenceTokens, highlights)
             }
           }
         )
@@ -903,7 +799,7 @@ object Browser {
             if(sentence == curSentence.value) S.currentSelectionEntry else S.nonCurrentSelectionEntry,
             ^.onClick --> curSentence.setState(sentence),
             <.span(S.sentenceSelectionEntryText)(
-              renderSentenceWithHighlights(sentence.sentenceTokens, RenderWholeSentence(spanHighlights))
+              V.Spans.renderHighlightedPassage(sentence.sentenceTokens, spanHighlights)
             )
           )
         }
@@ -943,7 +839,7 @@ object Browser {
       val verbColorMap = sortedVerbs
         .zipWithIndex.map { case (verb, index) =>
           verb.verbIndex -> (
-            if(nonDisplayedVerbIndices.contains(verb.verbIndex)) Rgba.black
+            if(nonDisplayedVerbIndices.contains(verb.verbIndex)) black
             else highlightLayerColors(index % highlightLayerColors.size)
           )
       }.toMap
@@ -957,9 +853,9 @@ object Browser {
         ),
         <.div(S.sentenceTextContainer)(
           <.span(S.sentenceText)(
-            renderSentenceWithHighlights(
+            V.Spans.renderHighlightedPassage(
               sentence.sentenceTokens,
-              RenderWholeSentence(answerSpansWithColors.toList),
+              answerSpansWithColors.toList,
               verbColorMap.collect { case (verbIndex, color) =>
                 verbIndex -> (
                   (v: VdomTag) => <.a(
@@ -1014,7 +910,7 @@ object Browser {
             sentence.nonPredicates.toVector.map { case (index, _) =>
               Vector(
                 <.span(S.subVerbText)(
-                  ^.color := Rgba.black.toColorStyleString, // maybe grey
+                  ^.color := black.toColorStyleString, // maybe grey
                   sentence.sentenceTokens(index)
                 )
               )
@@ -1024,10 +920,6 @@ object Browser {
       )
     }
   }
-
-  val S = BrowserStyles
-
-  // class Backend(scope: BackendScope[Props, State]) {
 
   def renderBrowser(props: Props) = {
     StateLocal.make(State.initial(props)) { stateSnapshot =>
@@ -1097,11 +989,8 @@ object Browser {
       )
     }
   }
-  // }
 
   val Component = ScalaComponent.builder[Props]("Browser")
     .render_P(renderBrowser).build
-    // .initialStateFromProps((props: Props) => State.initial(props))
-    // .renderBackend[Backend]
 
 }

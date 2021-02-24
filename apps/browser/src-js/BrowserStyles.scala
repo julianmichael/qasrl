@@ -3,7 +3,9 @@ package qasrl.apps.browser
 import scalacss.DevDefaults._
 import scala.language.postfixOps
 
-object BrowserStyles extends StyleSheet.Inline {
+import jjm.ui.View
+
+object BrowserStyles extends View.Styles {
   import dsl._
 
   // color scheme
@@ -39,13 +41,8 @@ object BrowserStyles extends StyleSheet.Inline {
   )
 
   // styles
-
-  val checkbox = style(
-    addClassNames("form-check-input")
-  )
-
-  val checkboxLabel = style(
-    addClassNames("form-check-label")
+  override val checkboxSpan = style(
+    // addClassNames("ml-3", "pl-3")
   )
 
   val webkitScrollbar = {
