@@ -13,10 +13,11 @@ import scala.util.{Success, Try}
 
 import java.nio.file.Paths
 
-import org.scalatest._
+import org.scalatest.funsuite._
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop._
 
-class QuestionTests extends FunSuite with Matchers {
+class QuestionTests extends AnyFunSuite with Matchers {
 
   import org.scalatest.Inside._
   import org.scalatest.AppendedClues._

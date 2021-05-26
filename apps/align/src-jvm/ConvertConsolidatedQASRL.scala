@@ -48,6 +48,7 @@ object ConvertConsolidatedQASRL extends CommandIOApp(
   name = "mill -i apps.align.runMain qasrl.apps.align.ConvertConsolidatedQASRL",
   header = "Runs clause resolution on the consolidated QA-SRL Bank.") {
 
+    // TODO default argument values
   def main: Opts[IO[ExitCode]] = {
     val qasrlBankO = Opts.option[Path](
       "qasrl-bank", metavar = "path", help = "Path to the QA-SRL Bank 2.0 data, e.g., ../qasrl-bank/data/qasrl-v2."
