@@ -306,6 +306,8 @@ object BrowserStyles extends View.Styles {
     countLabelText
   )
 
+  val sentenceCountLabelRandomText = style()
+
   val sentenceSelectionPane = style(
     selectionPane,
   )

@@ -62,7 +62,7 @@ datasets = [
     #     "\nhttps://www.aclweb.org/anthology/2020.coling-main.274/"
     # ),
 ]
-# TODO: upload commented datasets to site; QA-SRL-GS, QADiscourse
+# TODO: upload commented datasets to site; QA-SRL-GS, QADiscourse, and Frame-Aligned QA-SRL Bank.
 
 def get_dataset_option_prompt(num, dataset):
     if os.path.exists(dataset.path):

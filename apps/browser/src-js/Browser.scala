@@ -598,7 +598,7 @@ object Browser {
               }
             ).whenDefined { answersNel =>
               val highlights = answersNel.flatMap(_.spans.toNonEmptyList).sorted.map(_ -> color)
-              V.Spans.renderHighlights(sentence.sentenceTokens, highlights)
+              V.Spans.renderTokenHighlights(sentence.sentenceTokens, highlights)
             }
           }
         )
@@ -786,7 +786,21 @@ object Browser {
     <.div(S.sentenceSelectionPaneContainer)(
       <.div(S.sentenceCountLabel)(
         <.span(S.sentenceCountLabelText)(
-          sentenceCountLabel
+          s"$sentenceCountLabel ("
+        ),
+        <.span(S.sentenceCountLabelRandomText)(
+          <.a(
+            ^.href := "#",
+            ^.onClick --> curSentence.setState(
+              curSentences.iterator.drop(
+                new scala.util.Random().nextInt(curSentences.size)
+              ).next
+            ),
+            "random"
+          )
+        ),
+        <.span(S.sentenceCountLabelText)(
+          s")"
         )
       ),
       <.div(S.sentenceSelectionPane)(
@@ -799,7 +813,7 @@ object Browser {
             if(sentence == curSentence.value) S.currentSelectionEntry else S.nonCurrentSelectionEntry,
             ^.onClick --> curSentence.setState(sentence),
             <.span(S.sentenceSelectionEntryText)(
-              V.Spans.renderHighlightedPassage(sentence.sentenceTokens, spanHighlights)
+              V.Spans.renderHighlightedTokens(sentence.sentenceTokens, spanHighlights)
             )
           )
         }
@@ -853,7 +867,7 @@ object Browser {
         ),
         <.div(S.sentenceTextContainer)(
           <.span(S.sentenceText)(
-            V.Spans.renderHighlightedPassage(
+            V.Spans.renderHighlightedTokens(
               sentence.sentenceTokens,
               answerSpansWithColors.toList,
               verbColorMap.collect { case (verbIndex, color) =>
