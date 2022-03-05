@@ -32,7 +32,18 @@ case class ConsolidatedData(
   index: DataIndex,
   all: ConsolidatedDataset,
   documentsById: Map[DocumentId, Document]
-)
+) {
+  def part(p: DatasetPartition) = ConsolidatedDataset(
+    SortedMap(
+      all.sentences.filterKeys(sid =>
+        index.documents(p).exists(_.id == SentenceId.fromString(sid).documentId)
+      ).toMap.toSeq: _*
+    )
+  )
+  def train = part(DatasetPartition.Train)
+  def dev = part(DatasetPartition.Dev)
+  def test = part(DatasetPartition.Test)
+}
 
 object Data {
 
@@ -199,6 +210,33 @@ object Data {
     val index = qasrlData.index.copy(qaNomIds = qaNomIds)
 
     val all = qasrlData.all |+| allQANom
+
+    val docIdToMeta = index.documents.values.reduce(_ union _).map(meta => meta.id -> meta).toMap
+    val documentsById = all.sentences.values.toVector
+      .groupBy(s => SentenceId.fromString(s.sentenceId).documentId)
+      .map { case (docId, sentences) =>
+        val metadata = docIdToMeta(docId)
+        docId -> Document(metadata, SortedSet(sentences: _*))
+      }
+    ConsolidatedData(
+      index, all, documentsById
+    )
+  }
+
+  def loadQasrlGsData(qasrlData: ConsolidatedData, qasrlGsPath: Path): Try[ConsolidatedData] = for {
+    dev   <- readConsolidatedDataset(qasrlGsPath.resolve("dev.jsonl.gz"))
+    test  <- readConsolidatedDataset(qasrlGsPath.resolve("test.jsonl.gz"))
+  } yield {
+    implicit val consolidatedDatasetMonoid = ConsolidatedDataset
+      .consolidatedDatasetMonoid(Dataset.printMergeErrors)
+    val allQasrlGs = dev |+| test
+    // def sentenceIdToPart(sid: SentenceId) = {
+    //   qasrlData.index.documents.iterator.find(_._2.exists(_.id == sid.documentId)).map(_._1).get
+    // }
+    val qasrlGsIds = allQasrlGs.sentences.keySet.map(SentenceId.fromString)
+    val index = qasrlData.index.copy(qasrlGsIds = qasrlGsIds)
+
+    val all = qasrlData.all |+| allQasrlGs
 
     val docIdToMeta = index.documents.values.reduce(_ union _).map(meta => meta.id -> meta).toMap
     val documentsById = all.sentences.values.toVector

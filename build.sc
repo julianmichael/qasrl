@@ -244,6 +244,12 @@ object apps extends Module {
 
   object reprocess extends AppJvmModule
 
+  object reformat extends AppJvmModule {
+    override def ivyDeps = super.ivyDeps() ++ Agg(
+      ivy"com.github.tototoshi::scala-csv:$scalaCsvVersion"
+    )
+  }
+
   object browser extends Module {
 
     def serve(args: String*) = T.command {

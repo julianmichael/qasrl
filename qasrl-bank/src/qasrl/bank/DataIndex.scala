@@ -8,7 +8,8 @@ import cats.Order.catsKernelOrderingForOrder
 case class DataIndex(
   documents: Map[DatasetPartition, SortedSet[DocumentMetadata]],
   denseIds: SortedSet[SentenceId],
-  qaNomIds: SortedSet[SentenceId] = SortedSet() // XXX
+  qaNomIds: SortedSet[SentenceId] = SortedSet(), // XXX
+  qasrlGsIds: SortedSet[SentenceId] = SortedSet() // XXX
 ) {
   lazy val allDocumentMetas = documents.values.reduce(_ union _)
   lazy val allDocumentIds = allDocumentMetas.map(_.id)
@@ -26,6 +27,7 @@ object DataIndex {
       documents <- c.downField("documents").as[Map[DatasetPartition, SortedSet[DocumentMetadata]]]
       denseIds <- c.downField("denseIds").as[SortedSet[SentenceId]]
       qaNomIds = c.downField("qaNomIds").as[SortedSet[SentenceId]].getOrElse(SortedSet[SentenceId]())
-    } yield DataIndex(documents, denseIds, qaNomIds)
+      qasrlGsIds = c.downField("qasrlGsIds").as[SortedSet[SentenceId]].getOrElse(SortedSet[SentenceId]())
+    } yield DataIndex(documents, denseIds, qaNomIds, qasrlGsIds)
   }
 }
