@@ -61,8 +61,17 @@ datasets = [
         "\nKlein et al., COLING 2020."
         "\nhttps://www.aclweb.org/anthology/2020.coling-main.274/"
     ),
+    Dataset(
+        name = 'QA-SRL GS',
+        path = 'data/qasrl-gs',
+        url = 'http://qasrl.org/data/qasrl-gs.tar',
+        ext = '.tar',
+        description = "Described in 'Controlled Crowdsourcing for High-Quality QA-SRL Annotation', "
+        "\nRoit et al., ACL 2020."
+        "\nhttps://www.aclweb.org/anthology/2020.acl-main.626"
+    ),
 ]
-# TODO: upload to site; QA-SRL-GS, QADiscourse, and Frame-Aligned QA-SRL Bank.
+# TODO: upload to site: QADiscourse, and Frame-Aligned QA-SRL Bank.
 
 def get_dataset_option_prompt(num, dataset):
     if os.path.exists(dataset.path):
