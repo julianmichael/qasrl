@@ -44,25 +44,25 @@ datasets = [
         "\nhttps://www.aclweb.org/anthology/P18-1191/"
         # "\nDeprecated in favor of v2.1 due to minor changes in slot definitions."
     ),
-    # Dataset(
-    #     name = 'QA-SRL Bank 2.1',
-    #     path = 'data/qasrl-v2_1',
-    #     url = 'http://qasrl.org/data/qasrl-v2_1.tar',
-    #     ext = '.tar',
-    #     description = "Updated from 2.0 to make minor fixes to slot definitions "
-    #     "(see data/FORMAT.md)."
-    # ),
-    # Dataset(
-    #     name = 'QANom',
-    #     path = 'data/qanom',
-    #     url = 'http://qasrl.org/data/qanom.tar',
-    #     ext = '.tar',
-    #     description = "Described in 'QANom: Question-Answer driven SRL for Nominalizations', "
-    #     "\nKlein et al., COLING 2020."
-    #     "\nhttps://www.aclweb.org/anthology/2020.coling-main.274/"
-    # ),
+    Dataset(
+        name = 'QA-SRL Bank 2.1',
+        path = 'data/qasrl-v2_1',
+        url = 'http://qasrl.org/data/qasrl-v2_1.tar',
+        ext = '.tar',
+        description = "Updated from 2.0 to make minor fixes to slot definitions."
+        # "(see data/FORMAT.md)."
+    ),
+    Dataset(
+        name = 'QANom',
+        path = 'data/qanom',
+        url = 'http://qasrl.org/data/qanom.tar',
+        ext = '.tar',
+        description = "Described in 'QANom: Question-Answer driven SRL for Nominalizations', "
+        "\nKlein et al., COLING 2020."
+        "\nhttps://www.aclweb.org/anthology/2020.coling-main.274/"
+    ),
 ]
-# TODO: upload commented datasets to site; QA-SRL-GS, QADiscourse, and Frame-Aligned QA-SRL Bank.
+# TODO: upload to site; QA-SRL-GS, QADiscourse, and Frame-Aligned QA-SRL Bank.
 
 def get_dataset_option_prompt(num, dataset):
     if os.path.exists(dataset.path):
