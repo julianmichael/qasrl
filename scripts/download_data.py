@@ -92,8 +92,8 @@ def construct_prompt():
         prompt += "\n" + get_dataset_option_prompt(i + 1, dataset)
     return prompt
 
-def download_dataset(dataset):
-    print("Downloading {}.".format(dataset.name))
+def download_dataset(choice):
+    print("Downloading {}.".format(choice.name))
     if len(choice.ext) > 0:
        tarpath = choice.path + choice.ext
        urllib.request.urlretrieve(choice.url, tarpath, show_progress)

@@ -1,18 +1,18 @@
 import mill._, mill.scalalib._, mill.scalalib.publish._, mill.scalajslib._
 import mill.scalalib.scalafmt._
-import ammonite.ops._
+import os._
 import coursier.maven.MavenRepository
 
 val thisPublishVersion = "0.3.1-SNAPSHOT"
 
 val scalaVersions = List(
   "2.12.13",
-  "2.13.4"
+  "2.13.8"
 )
 val thisScalaJSVersion = "1.4.0"
 
 val macroParadiseVersion = "2.1.1"
-val kindProjectorVersion = "0.11.3"
+val kindProjectorVersion = "0.13.2"
 val betterMonadicForVersion = "0.3.1"
 
 // my libs -- make sure versions match up
@@ -200,10 +200,11 @@ trait FlexRunnable extends ScalaModule with JvmPlatform {
         forkArgs(),
         forkEnv(),
         args,
-        workingDir = ammonite.ops.pwd
+        workingDir = pwd
       )
     ) catch {
-      case e: InteractiveShelloutException =>
+      // case e: InteractiveShelloutException =>
+      case e: Exception =>
         Result.Failure("subprocess failed")
     }
   }

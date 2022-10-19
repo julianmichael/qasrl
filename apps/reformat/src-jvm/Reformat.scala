@@ -90,7 +90,7 @@ object Reformat extends CommandIOApp(
   ) {
     val questions = SlotBasedLabel.getVerbTenseAbstractedSlotsForQuestion(
       sentenceTokens, verbInflectedForms, originalLines.map(_.apply("question"))
-    ).map(_.getOrElse((println(this): Id[Unit]) >> ???))
+    ).map(_.getOrElse((println(this.toString + "\n" + originalLines.map(_.apply("question").toString)): Id[Unit]) >> ???))
 
     val resolvedFramePairs = ClauseResolution
       .getResolvedFramePairs(verbInflectedForms, questions)
@@ -149,19 +149,25 @@ object Reformat extends CommandIOApp(
   def readFile(qasrlData: Dataset, anonMap: Map[String, Int], inPath: NIOPath): IO[ConsolidatedDataset] = {
     readCSV(inPath)(
       (headers, lines) => lines
-        .groupAdjacentBy(fields => fields("qasrl_id") -> fields("verb_idx"))
-        .map { case ((sid, verbIndexStr), chunk) =>
-          val verbIndex = verbIndexStr.toInt
+        .groupAdjacentBy(fields => fields("qasrl_id"))
+        // .groupAdjacentBy(fields => fields("qasrl_id") -> fields("verb_idx"))
+        .map { case (sid, sentenceChunk) =>
+        // .map { case ((sid, verbIndexStr), chunk) =>
           val sentence = qasrlData.sentences(sid)
-          val verbInfo = VerbInfo(
-            sid,
-            sentence.sentenceTokens,
-            verbIndex,
-            sentence.verbEntries(verbIndex.toInt).verbInflectedForms,
-            chunk.toList,
-            anonMap
-          )
-          Sentence(sentence.sentenceId, sentence.sentenceTokens, SortedMap(verbIndex -> verbInfo.verbEntry))
+          // chunk.groupAdjacentBy
+          val verbs = sentenceChunk.toVector.groupBy(_.apply("verb_idx")).map { case (verbIndexStr, verbChunk) =>
+            val verbIndex = verbIndexStr.toInt
+            val verbInfo = VerbInfo(
+              sid,
+              sentence.sentenceTokens,
+              verbIndex,
+              sentence.verbEntries(verbIndex.toInt).verbInflectedForms,
+              verbChunk.toList,
+              anonMap
+            )
+            verbIndex -> verbInfo.verbEntry
+          }
+          Sentence(sentence.sentenceId, sentence.sentenceTokens, SortedMap(verbs.toSeq: _*))
         }.compile.toList
     ).map(sentences => ConsolidatedDataset.fromDataset(Dataset(SortedMap(sentences.map(s => s.sentenceId -> s): _*))))
   }
@@ -198,7 +204,9 @@ object Reformat extends CommandIOApp(
     dev = wikipediaDev |+| wikinewsDev
     test = wikipediaTest |+| wikinewsTest
     _ <- IO(println("Dev sentences: " + dev.sentences.size))
+    _ <- IO(println("Dev verbs: " + dev.sentences.foldMap(_.verbEntries.size)))
     _ <- IO(println("Test sentences: " + test.sentences.size))
+    _ <- IO(println("Test verbs: " + test.sentences.foldMap(_.verbEntries.size)))
     _ <- FileUtil.writeJsonLines(outPath.resolve("dev.jsonl.gz"))(dev.sentences.values.toSeq)
     _ <- FileUtil.writeJsonLines(outPath.resolve("test.jsonl.gz"))(test.sentences.values.toSeq)
   } yield ExitCode.Success

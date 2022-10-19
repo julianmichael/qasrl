@@ -5,3 +5,5 @@
 /.bloop
 /.metals
 /.ammonite
+
+*.~undo-tree~

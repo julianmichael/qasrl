@@ -1,22 +1,22 @@
 import mill._
-import ammonite.ops._
+// import ammonite.
+// import ammonite.ops._
 
 trait SimpleJSDeps extends Module {
   def jsDeps = T { Agg.empty[String] }
-  // TODO use persistent target to store a local cache of the downloaded deps
   def downloadedJSDeps = T {
     for(url <- jsDeps()) yield {
       val filename = url.substring(url.lastIndexOf("/") + 1)
-      %("curl", "-o", filename, url)(T.ctx().dest)
+        os.proc("curl", "-o", filename, url).call(cwd = T.ctx().dest)
       T.ctx().dest / filename
     }
   }
   def aggregatedJSDeps = T {
     val targetPath = T.ctx().dest / "jsdeps.js"
-    write.append(targetPath, "")
+    os.write.append(targetPath, "")
     downloadedJSDeps().foreach { path =>
-      write.append(targetPath, read!(path))
-      write.append(targetPath, "\n")
+      os.write.append(targetPath, os.read(path))
+      os.write.append(targetPath, "\n")
     }
     PathRef(targetPath)
   }
