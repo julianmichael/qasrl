@@ -103,7 +103,7 @@ def download_dataset(choice):
        os.remove(tarpath)
     else:
        urllib.request.urlretrieve(choice.url, choice.path, show_progress)
-    print("\nDownload complete: {}".format(dataset.path))
+    print("\nDownload complete: {}".format(choice.path))
 
 should_refresh_prompt = True
 while True:
