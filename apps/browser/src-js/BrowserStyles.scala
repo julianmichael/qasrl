@@ -445,27 +445,28 @@ object BrowserStyles extends View.Styles {
   val roundLegendMark = style(
     addClassNames("ml-2"),
     display.inlineBlock,
-    color.transparent
+    color.transparent,
+    width(0.2 rem)
   )
 
   val originalLegendMark = style(
     roundLegendMark,
-    originalRoundIndicator
+    backgroundColor(originalRoundIndicatorColor)
   )
 
   val expansionLegendMark = style(
     roundLegendMark,
-    expansionRoundIndicator
+    backgroundColor(expansionRoundIndicatorColor)
   )
 
   val evalLegendMark = style(
     roundLegendMark,
-    evalRoundIndicator
+    backgroundColor(evalRoundIndicatorColor)
   )
 
   val qaNomLegendMark = style(
     roundLegendMark,
-    qaNomRoundIndicator
+    backgroundColor(qaNomRoundIndicatorColor)
   )
 
   // back to table (question cells etc)
